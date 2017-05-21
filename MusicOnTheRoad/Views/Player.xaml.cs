@@ -79,8 +79,7 @@ namespace MusicOnTheRoad.Views
 
 		private async void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)
 		{
-			SymbolIcon oo = new SymbolIcon(); oo.Symbol = Symbol.Accept;
-			await _vm.SetSourceFolderAsync((sender as FrameworkElement).DataContext.ToString()).ConfigureAwait(false);
+			await _vm.SetSourceFolderAsync((sender as FrameworkElement).DataContext as NameAndPath).ConfigureAwait(false);
 		}
 	}
 }

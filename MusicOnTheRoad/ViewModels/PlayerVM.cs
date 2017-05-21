@@ -42,11 +42,11 @@ namespace MusicOnTheRoad.ViewModels
 			RaisePropertyChanged_UI(nameof(Source));
 			return true;
 		}
-		public async Task<bool> SetSourceFolderAsync(string folderPath = null)
+		public async Task<bool> SetSourceFolderAsync(NameAndPath nameAndPath = null)
 		{
 			StorageFolder folder = null;
-			if (String.IsNullOrWhiteSpace(folderPath)) folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
-			else folder = await StorageFolder.GetFolderFromPathAsync(folderPath);
+			if (String.IsNullOrWhiteSpace(nameAndPath.Path)) folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
+			else folder = await StorageFolder.GetFolderFromPathAsync(nameAndPath.Path);
 			if (folder == null) return false;
 
 			var files = await folder.GetFilesAsync();
@@ -98,7 +98,12 @@ namespace MusicOnTheRoad.ViewModels
 			if (toBeExpanded == null || isExpanded) return;
 
 			// LOLLO TODO put this away in a separate thread				
-			string[] children = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
+			string[] paths = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
+			List<NameAndPath> children = new List<NameAndPath>();
+			foreach (var path in paths)
+			{
+				children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
+			}
 			toBeExpanded.Children.AddRange(children);
 			toBeExpanded.IsExpanded = true;
 		}
@@ -156,8 +161,8 @@ namespace MusicOnTheRoad.ViewModels
 	{
 		private string _folderPath = null;
 		public string FolderPath { get { return _folderPath; } set { _folderPath = value; RaisePropertyChanged(); } }
-		private readonly SwitchableObservableCollection<string> _children = new SwitchableObservableCollection<string>();
-		public SwitchableObservableCollection<string> Children { get { return _children; } }
+		private readonly SwitchableObservableCollection<NameAndPath> _children = new SwitchableObservableCollection<NameAndPath>();
+		public SwitchableObservableCollection<NameAndPath> Children { get { return _children; } }
 		private bool _isExpanded = false;
 		public bool IsExpanded { get { return _isExpanded; } set { _isExpanded = value; RaisePropertyChanged(); } }
 

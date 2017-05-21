@@ -23,11 +23,11 @@
 				<ColumnDefinition/>
 			</Grid.ColumnDefinitions>
 
-			<Button Grid.Column="0" Click="{x:Bind VM.SetSourceFileAsync}">
-				<TextBlock Text="Pick a file"/>
-			</Button>
-			<Button Grid.Column="1" Click="OnPickFolderButton_Click">
+			<Button Grid.Column="0" Click="OnPickFolderButton_Click">
 				<TextBlock Text="Pick a folder"/>
+			</Button>
+			<Button Grid.Column="1" Click="{x:Bind VM.SetSourceFileAsync}">
+				<TextBlock Text="Pick a file"/>
 			</Button>
 			<Button Grid.Column="2" Click="{x:Bind VM.AddRootFolderAsync}">
 				<TextBlock Text="Add a root folder"/>
@@ -54,9 +54,11 @@
 							<RowDefinition Height="Auto"/>
 							<RowDefinition/>
 						</Grid.RowDefinitions>
-						<Border BorderThickness="0" 
-								IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False"
-								Tapped="OnRootFolderPathBorder_Tapped">
+						<Border 
+							Background="Transparent"
+							BorderThickness="0" 
+							IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False"
+							Tapped="OnRootFolderPathBorder_Tapped">
 							<StackPanel Orientation="Horizontal">
 								<SymbolIcon Symbol="{Binding IsExpanded, Converter={StaticResource BoolToSymbol}}"/>
 								<TextBlock Grid.Row="0"
@@ -77,10 +79,12 @@
 							</ListView.ItemsPanel>-->
 							<ListView.ItemTemplate>
 								<DataTemplate>
-									<Border BorderThickness="0" 
+									<Border 
+										Background="Transparent"
+										BorderThickness="0" 
 										IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False"
 										Tapped="OnChildFolderBorder_Tapped">
-										<TextBlock Text="{Binding}"
+										<TextBlock Text="{Binding Name}"
 											TextWrapping="Wrap"
 											Margin="10"/>
 									</Border>
