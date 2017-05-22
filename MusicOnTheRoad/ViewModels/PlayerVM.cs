@@ -29,6 +29,8 @@ namespace MusicOnTheRoad.ViewModels
 		public SwitchableObservableCollection<FolderWithChildren> FoldersWithChildren { get { return _foldersWithChildren; } }
 		private string _lastMessage = null;
 		public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged_UI(); } }
+		private string _songTitle = null;
+		public string SongTitle { get { return _songTitle; } private set { _songTitle = value; RaisePropertyChanged_UI(); } }
 		private bool _isLoadingChildren = false;
 		public bool IsLoadingChildren { get { return _isLoadingChildren; } private set { _isLoadingChildren = value; RaisePropertyChanged_UI(); } }
 
@@ -99,10 +101,13 @@ namespace MusicOnTheRoad.ViewModels
 
 			try
 			{
-				await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
+				var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
+				var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
+				mediaPlaybackList.Items.Add(mediaPlaybackItem);
 
+				await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
 				RemoveMediaHandlers();
-				_source = MediaSource.CreateFromStorageFile(file);
+				_source = mediaPlaybackList;
 				AddMediaHandlers();
 			}
 			finally
@@ -137,7 +142,6 @@ namespace MusicOnTheRoad.ViewModels
 			{
 				await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
 				RemoveMediaHandlers();
-				//_source = _mediaPlaybackList = mediaPlaybackList;
 				_source = mediaPlaybackList;
 				AddMediaHandlers();
 			}
@@ -296,16 +300,6 @@ namespace MusicOnTheRoad.ViewModels
 				mediaPlaybackList.ItemOpened += OnMediaPlaybackList_ItemOpened;
 			}
 
-			var mediaSource = _source as MediaSource;
-			if (mediaSource != null)
-			{
-				//_mediaPlayer.MediaEnded += OnMediaPlayer_MediaEnded;
-				_mediaPlayer.MediaFailed += OnMediaPlayer_MediaFailed;
-				_mediaPlayer.MediaOpened += OnMediaPlayer_MediaOpened;
-				//mediaSource.OpenOperationCompleted += OnMediaSource_OpenOperationCompleted;
-				//mediaSource.StateChanged += OnMediaSource_StateChanged;
-			}
-
 			_isMediaHandlersActive = true;
 		}
 
@@ -319,36 +313,9 @@ namespace MusicOnTheRoad.ViewModels
 				mediaPlaybackList.ItemOpened -= OnMediaPlaybackList_ItemOpened;
 			}
 
-			var mediaSource = _source as MediaSource;
-			if (mediaSource != null)
-			{
-				//_mediaPlayer.MediaEnded -= OnMediaPlayer_MediaEnded;
-				_mediaPlayer.MediaFailed -= OnMediaPlayer_MediaFailed;
-				_mediaPlayer.MediaOpened -= OnMediaPlayer_MediaOpened;
-				//mediaSource.OpenOperationCompleted -= OnMediaSource_OpenOperationCompleted;
-				//mediaSource.StateChanged -= OnMediaSource_StateChanged;
-			}
-
 			_isMediaHandlersActive = false;
 		}
 
-		private void OnMediaPlayer_MediaOpened(MediaPlayer sender, object args)
-		{
-			var mediaSource = sender.Source;
-			var currentAudioTrack = (mediaSource as MediaSource)?.CurrentItem?.AudioTracks?[0];
-			UpdateAudioQuality(currentAudioTrack);
-		}
-
-		private void OnMediaPlayer_MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
-		{
-			var message = args?.ErrorMessage;
-			UpdateLastMessage(message == null ? "media error" : message);
-		}
-
-		private void OnMediaPlayer_MediaEnded(MediaPlayer sender, object args)
-		{
-			//throw new NotImplementedException();
-		}
 		private void OnMediaPlaybackList_ItemOpened(MediaPlaybackList sender, MediaPlaybackItemOpenedEventArgs args)
 		{
 			var currentAudioTrack = args?.Item?.AudioTracks?[0];
@@ -365,16 +332,6 @@ namespace MusicOnTheRoad.ViewModels
 		{
 			var currentAudioTrack = args?.NewItem?.AudioTracks?[0];
 			UpdateAudioQuality(currentAudioTrack);
-		}
-
-		private void OnMediaSource_StateChanged(MediaSource sender, MediaSourceStateChangedEventArgs args)
-		{
-			//throw new NotImplementedException();
-		}
-
-		private void OnMediaSource_OpenOperationCompleted(MediaSource sender, MediaSourceOpenOperationCompletedEventArgs args)
-		{
-			//throw new NotImplementedException();
 		}
 		#endregion media event handlers
 

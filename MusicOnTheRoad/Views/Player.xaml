@@ -11,12 +11,17 @@
     d:DesignWidth="400"
 	Loaded="OnLoaded"
 	Unloaded="OnUnloaded">
+	<uctl:ObservableControl.Resources>
+		<x:Double x:Key="LargeFontSize">18</x:Double>
+		<Thickness x:Key="MyMargin">10</Thickness>
+	</uctl:ObservableControl.Resources>
 
 	<Grid>
 		<Grid.RowDefinitions>
 			<RowDefinition Height="1*"/>
 			<RowDefinition Height="8*"/>
 			<RowDefinition Height="2*"/>
+			<RowDefinition Height="1*"/>
 			<RowDefinition Height="1*"/>
 		</Grid.RowDefinitions>
 		<uctl:UniversalWrapPanel Orientation="Horizontal">
@@ -75,7 +80,7 @@
 								<TextBlock Grid.Column="1"
 									Text="{Binding FolderPath}"
 									TextWrapping="Wrap"
-									Margin="10"/>
+									Margin="{StaticResource MyMargin}"/>
 								<SymbolIcon Grid.Column="2" Symbol="Delete" Tapped="OnRemoveRootFolderIcon_Tapped"/>
 							</Grid>
 						</Border>
@@ -98,7 +103,7 @@
 										Tapped="OnChildFolderBorder_Tapped">
 										<TextBlock Text="{Binding Name}"
 											TextWrapping="Wrap"
-											Margin="10"/>
+											Margin="{StaticResource MyMargin}"/>
 									</Border>
 								</DataTemplate>
 							</ListView.ItemTemplate>
@@ -114,7 +119,7 @@
 			  Canvas.ZIndex="999"
 			  Visibility="{x:Bind VM.IsLoadingChildren, Converter={StaticResource BoolToVisible}, Mode=OneWay, FallbackValue=Visible}">
 			<TextBlock
-				FontSize="20"
+				FontSize="{StaticResource LargeFontSize}"
 				HorizontalAlignment="Center"
 				Opacity="1"
 				Text="Loading..." 
@@ -127,7 +132,14 @@
 							Source="{x:Bind VM.Source, Mode=OneWay}"/>
 
 		<TextBlock Grid.Row="3" 
-				   FontSize="20"
+				   FontSize="{StaticResource LargeFontSize}"
+				   Margin="{StaticResource MyMargin}"
+				   Text="{x:Bind VM.LastMessage, Mode=OneWay}"
+				   TextWrapping="WrapWholeWords"/>
+
+		<TextBlock Grid.Row="4" 
+				   FontSize="{StaticResource LargeFontSize}"
+				   Margin="{StaticResource MyMargin}"
 				   Text="{x:Bind VM.LastMessage, Mode=OneWay}"
 				   TextWrapping="WrapWholeWords"/>
 	</Grid>
