@@ -31,7 +31,6 @@ namespace MusicOnTheRoad.Data
 				var dataToBeChanged = GetInstance();
 				//I must clone memberwise, otherwise the current event handlers get lost
 				CloneProperties(from, ref dataToBeChanged);
-				dataToBeChanged._isInitialised = true;
 				//});
 			}
 			catch (Exception ex)
@@ -48,11 +47,6 @@ namespace MusicOnTheRoad.Data
 			target.RootFolderPaths.Clear();
 			target.RootFolderPaths.AddRange(source.RootFolderPaths);
 		}
-		/// <summary>
-		/// Tells if the class has been initialised from the local storage
-		/// </summary>
-		private bool _isInitialised = false;
-		public bool IsInitialised { get { return _isInitialised; } }
 		#endregion lifecycle
 
 		private readonly SwitchableObservableCollection<string> _rootFolderPaths = new SwitchableObservableCollection<string>();

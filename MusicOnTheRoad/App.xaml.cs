@@ -51,7 +51,7 @@ namespace MusicOnTheRoad
 			try
 			{
 				Logger.Add_TPL("App OnEnteredBackground", Logger.AppEventsLogFilename, Logger.Severity.Info, false);
-				await SuspensionManager.SaveAsync(PersistentData.GetInstance());
+				await SuspensionManager.SaveAsync();
 			}
 			finally
 			{
@@ -115,7 +115,7 @@ namespace MusicOnTheRoad
 			try
 			{
 				Logger.Add_TPL("App OnLeavingBackground", Logger.AppEventsLogFilename, Logger.Severity.Info, false);
-				if (PersistentData.GetInstance().IsInitialised) return;
+				if (SuspensionManager.IsLoaded) return;
 				await SuspensionManager.LoadAsync();
 			}
 			finally

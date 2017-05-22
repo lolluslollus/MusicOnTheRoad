@@ -1,4 +1,5 @@
 ﻿using MusicOnTheRoad.Data;
+using MusicOnTheRoad.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ using Windows.Storage.Pickers;
 
 namespace MusicOnTheRoad.ViewModels
 {
-	public class PlayerVM : ObservableData
+	public class PlayerVM : ObservableData, IDisposable
 	{
 		private readonly PersistentData _persistentData = null;
 		public PersistentData PersistentData { get { return _persistentData; } }
@@ -23,17 +24,41 @@ namespace MusicOnTheRoad.ViewModels
 		public IMediaPlaybackSource Source { get { return _source; } }
 		private readonly SwitchableObservableCollection<FolderWithChildren> _foldersWithChildren = new SwitchableObservableCollection<FolderWithChildren>();
 		public SwitchableObservableCollection<FolderWithChildren> FoldersWithChildren { get { return _foldersWithChildren; } }
+		private string _lastMessage = null;
+		public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged(); } }
 
 		public PlayerVM(MediaPlayer mediaPlayer)
 		{
 			_mediaPlayer = mediaPlayer;
+
 			_persistentData = PersistentData.GetInstance();
-			//RaisePropertyChanged(nameof(PersistentData));
-			foreach (var folderPath in _persistentData.RootFolderPaths)
-			{
-				FoldersWithChildren.Add(new FolderWithChildren(folderPath));
-			}
+			RaisePropertyChanged(nameof(PersistentData));
+
+			AddDataChangedHandlers();
+			Task upd0 = UpdateLastMessage();
+			Task upd1 = UpdateFoldersWithChildren();
 		}
+
+		private Task UpdateFoldersWithChildren()
+		{
+			return RunInUiThreadAsync(delegate
+			{
+				FoldersWithChildren.Clear();
+				foreach (var folderPath in _persistentData.RootFolderPaths)
+				{
+					FoldersWithChildren.Add(new FolderWithChildren(folderPath));
+				}
+			});
+		}
+		private Task UpdateLastMessage()
+		{
+			return RunInUiThreadAsync(delegate
+			{
+				LastMessage = _persistentData.LastMessage;
+			});
+		}
+
+		#region user actions
 		public async Task<bool> SetSourceFileAsync()
 		{
 			var file = await Utilz.Pickers.PickOpenFileAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
@@ -45,7 +70,7 @@ namespace MusicOnTheRoad.ViewModels
 		public async Task<bool> SetSourceFolderAsync(NameAndPath nameAndPath = null)
 		{
 			StorageFolder folder = null;
-			if (String.IsNullOrWhiteSpace(nameAndPath.Path)) folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
+			if (nameAndPath == null || String.IsNullOrWhiteSpace(nameAndPath.Path)) folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
 			else folder = await StorageFolder.GetFolderFromPathAsync(nameAndPath.Path);
 			if (folder == null) return false;
 
@@ -62,6 +87,8 @@ namespace MusicOnTheRoad.ViewModels
 			}
 
 			_source = mediaPlaybackList;
+
+
 			RaisePropertyChanged_UI(nameof(Source));
 			return true;
 		}
@@ -116,25 +143,57 @@ namespace MusicOnTheRoad.ViewModels
 			if (toBeRemoved == null) return;
 			FoldersWithChildren.Remove(toBeRemoved);
 		}
+		#endregion user actions
 
-		#region event handlers
-		private bool _isHandlersActive = false;
-
-		private void _addHandlers()
+		#region data event handlers
+		private bool _isDataChangedHandlersActive = false;
+		private void AddDataChangedHandlers()
 		{
-			if (_isHandlersActive) return;
+			if (_isDataChangedHandlersActive) return;
+			SuspensionManager.Loaded += OnSuspensionManager_Loaded;
+			_persistentData.PropertyChanged += OnPersistentData_PropertyChanged;
+			_isDataChangedHandlersActive = true;
+		}
+		private void RemoveDataChangedHandlers()
+		{
+			SuspensionManager.Loaded -= OnSuspensionManager_Loaded;
+			_persistentData.PropertyChanged -= OnPersistentData_PropertyChanged;
+			_isDataChangedHandlersActive = false;
+		}
+
+		private void OnSuspensionManager_Loaded(object sender, bool e)
+		{
+			Task upd0 = UpdateLastMessage();
+			Task upd1 = UpdateFoldersWithChildren();
+		}
+
+		private void OnPersistentData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+		{
+			if (e.PropertyName == nameof(PersistentData.LastMessage))
+			{
+				Task upd = UpdateLastMessage();
+			}
+		}
+		#endregion data event handlers
+
+		#region media event handlers
+		private bool _isMediaHandlersActive = false;
+
+		private void AddMediaHandlers()
+		{
+			if (_isMediaHandlersActive) return;
 			_mediaPlayer.MediaEnded += OnMediaPlayer_MediaEnded;
 			_mediaPlayer.MediaFailed += OnMediaPlayer_MediaFailed;
 			_mediaPlayer.MediaOpened += OnMediaPlayer_MediaOpened;
-			_isHandlersActive = true;
+			_isMediaHandlersActive = true;
 		}
 
-		private void _removeHandlers()
+		private void RemoveMediaHandlers()
 		{
 			_mediaPlayer.MediaEnded -= OnMediaPlayer_MediaEnded;
 			_mediaPlayer.MediaFailed -= OnMediaPlayer_MediaFailed;
 			_mediaPlayer.MediaOpened -= OnMediaPlayer_MediaOpened;
-			_isHandlersActive = false;
+			_isMediaHandlersActive = false;
 		}
 
 		private void OnMediaPlayer_MediaOpened(Windows.Media.Playback.MediaPlayer sender, object args)
@@ -151,10 +210,55 @@ namespace MusicOnTheRoad.ViewModels
 		{
 			throw new NotImplementedException();
 		}
-		#endregion event handlers
+		#endregion media event handlers
 
-		#region utils
-		#endregion utils
+		#region IDisposable Support
+		private bool isDisposed = false; // To detect redundant calls
+
+		protected virtual void Dispose(bool isDisposing)
+		{
+			if (!isDisposed)
+			{
+				if (isDisposing)
+				{
+					// TODO: dispose managed state (managed objects).
+					RemoveDataChangedHandlers();
+					RemoveMediaHandlers();
+				}
+
+				// TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+				// TODO: set large fields to null.
+
+				isDisposed = true;
+			}
+		}
+
+		// TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+		// ~PlayerVM() {
+		//   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+		//   Dispose(false);
+		// }
+
+		// This code added to correctly implement the disposable pattern.
+		public void Dispose()
+		{
+			// Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+			Dispose(true);
+			// TODO: uncomment the following line if the finalizer is overridden above.
+			// GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Finalizes an instance of the <see cref="PlayerVM"/> class. 
+		/// Releases unmanaged resources and performs other cleanup operations before the <see cref="PlayerVM"/>
+		/// is reclaimed by garbage collection. Will run only if the
+		/// Dispose method does not get called.
+		/// </summary>
+		//~PlayerVM()
+		//{
+		//	this.Dispose(false);
+		//}
+		#endregion
 	}
 
 	public class FolderWithChildren : ObservableData

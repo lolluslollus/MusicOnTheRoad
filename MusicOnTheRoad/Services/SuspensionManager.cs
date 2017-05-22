@@ -1,6 +1,7 @@
 ﻿using MusicOnTheRoad.Data;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -16,6 +17,11 @@ namespace MusicOnTheRoad.Services
 	public sealed class SuspensionManager
 	{
 		private const string SessionDataFilename = "LolloSessionData.xml";
+		private static readonly SemaphoreSlimSafeRelease _suspensionSemaphore = new SemaphoreSlimSafeRelease(1, 1);
+		private static volatile bool _isLoaded = false;
+		public static bool IsLoaded { get { return _isLoaded; } private set { if (_isLoaded != value) { _isLoaded = value; Loaded?.Invoke(null, value); } } }
+
+		public static event EventHandler<bool> Loaded;
 
 		// LOLLO NOTE important! The Mutex can work across AppDomains (ie across main app and background task) but only if you give it a name!
 		// Also, if you declare initially owned true, the second thread trying to cross it will stay locked forever. So, declare it false.
@@ -26,7 +32,8 @@ namespace MusicOnTheRoad.Services
 
 			try
 			{
-				StorageFile file = await ApplicationData.Current.LocalCacheFolder.CreateFileAsync(SessionDataFilename, CreationCollisionOption.OpenIfExists).AsTask().ConfigureAwait(false);
+				await _suspensionSemaphore.WaitAsync().ConfigureAwait(false);
+				var file = await ApplicationData.Current.LocalCacheFolder.CreateFileAsync(SessionDataFilename, CreationCollisionOption.OpenIfExists).AsTask().ConfigureAwait(false);
 
 				//string ssss = null; //this is useful when you debug and want to see the file as a string
 				//using (IInputStream inStream = await file.OpenSequentialReadAsync())
@@ -48,6 +55,8 @@ namespace MusicOnTheRoad.Services
 
 						PersistentData.SetInstanceProperties(newPersistentData);
 						//await PersistentData.SetInstanceProperties(newPersistentData).ConfigureAwait(false);
+
+						IsLoaded = true;
 					}
 				}
 				Debug.WriteLine("ended reading settings");
@@ -62,15 +71,20 @@ namespace MusicOnTheRoad.Services
 				errorMessage = "could not restore the settings";
 				await Logger.AddAsync(ex.ToString(), Logger.FileErrorLogFilename);
 			}
-
-			if (!string.IsNullOrWhiteSpace(errorMessage)) PersistentData.GetInstance().LastMessage = errorMessage;
+			finally
+			{
+				if (!string.IsNullOrWhiteSpace(errorMessage)) PersistentData.GetInstance().LastMessage = errorMessage;
+				SemaphoreSlimSafeRelease.TryRelease(_suspensionSemaphore);
+			}
 		}
 
-		public static async Task SaveAsync(PersistentData allDataOriginal)
+		public static async Task SaveAsync()
 		{
 			try
 			{
-				using (MemoryStream memoryStream = new MemoryStream())
+				await _suspensionSemaphore.WaitAsync().ConfigureAwait(false);
+				var allDataOriginal = PersistentData.GetInstance();
+				using (var memoryStream = new MemoryStream())
 				{
 					DataContractSerializer sessionDataSerializer = new DataContractSerializer(typeof(PersistentData));
 					// DataContractSerializer serializer = new DataContractSerializer(typeof(PersistentData), new DataContractSerializerSettings() { SerializeReadOnlyTypes = true });
@@ -93,6 +107,10 @@ namespace MusicOnTheRoad.Services
 			catch (Exception ex)
 			{
 				Logger.Add_TPL(ex.ToString(), Logger.FileErrorLogFilename);
+			}
+			finally
+			{
+				SemaphoreSlimSafeRelease.TryRelease(_suspensionSemaphore);
 			}
 		}
 	}

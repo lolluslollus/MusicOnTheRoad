@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Utilz.Controlz;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.UI.Xaml;
@@ -18,31 +19,55 @@ using Windows.UI.Xaml.Navigation;
 
 namespace MusicOnTheRoad.Views
 {
-	public sealed partial class Player : UserControl
+	public sealed partial class Player : ObservableControl
 	{
-		private readonly PlayerVM _vm = null;
+		private PlayerVM _vm = null;
 		public PlayerVM VM { get { return _vm; } }
+
+		#region lifecycle
 		public Player()
 		{
 			this.InitializeComponent();
 			mediaPlayerElement.TransportControls = new MediaTransportControls()
 			{
+				IsCompact = false,
 				IsFastForwardButtonVisible = false,
 				IsFastForwardEnabled = false,
 				IsFastRewindButtonVisible = false,
 				IsFastRewindEnabled = false,
+				IsFullWindowButtonVisible = false,
+				IsFullWindowEnabled = false,
 				IsNextTrackButtonVisible = true,
+				IsPlaybackRateButtonVisible = false,
+				IsPlaybackRateEnabled = false,
 				IsPreviousTrackButtonVisible = true,
-				IsSkipBackwardButtonVisible = true,
-				IsSkipBackwardEnabled = true,
-				IsSkipForwardButtonVisible = true,
-				IsSkipForwardEnabled = true,
-				IsVolumeEnabled = true,
+				IsSeekBarVisible = true,
+				IsSeekEnabled = true,
+				IsSkipBackwardButtonVisible = false,
+				IsSkipBackwardEnabled = false,
+				IsSkipForwardButtonVisible = false,
+				IsSkipForwardEnabled = false,
 				IsStopButtonVisible = true,
-				IsStopEnabled = true
+				IsStopEnabled = true,
+				IsVolumeButtonVisible = false,
+				IsVolumeEnabled = false,
+				IsZoomButtonVisible = false,
+				IsZoomEnabled = false
 			};
-			_vm = new PlayerVM(mediaPlayerElement.MediaPlayer);
 		}
+
+		private void OnLoaded(object sender, RoutedEventArgs e)
+		{
+			_vm = new PlayerVM(mediaPlayerElement.MediaPlayer);
+			RaisePropertyChanged_UI(nameof(VM));
+		}
+
+		private void OnUnloaded(object sender, RoutedEventArgs e)
+		{
+			_vm?.Dispose();
+			_vm = null;
+		}
+		#endregion lifecycle
 
 		private void OnListView_ItemClick(object sender, ItemClickEventArgs e)
 		{
@@ -80,6 +105,12 @@ namespace MusicOnTheRoad.Views
 		private async void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)
 		{
 			await _vm.SetSourceFolderAsync((sender as FrameworkElement).DataContext as NameAndPath).ConfigureAwait(false);
+		}
+
+		private void OnRemoveRootFolderIcon_Tapped(object sender, TappedRoutedEventArgs e)
+		{
+			e.Handled = true;
+			_vm.RemoveRootFolder(((sender as FrameworkElement).DataContext as FolderWithChildren).FolderPath);
 		}
 	}
 }

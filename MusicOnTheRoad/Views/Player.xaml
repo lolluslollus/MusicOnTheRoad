@@ -1,13 +1,16 @@
-﻿<UserControl
+﻿<uctl:ObservableControl
     x:Class="MusicOnTheRoad.Views.Player"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+	xmlns:uctl="using:Utilz.Controlz"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:MusicOnTheRoad.Views"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     d:DesignHeight="300"
-    d:DesignWidth="400">
+    d:DesignWidth="400"
+	Loaded="OnLoaded"
+	Unloaded="OnUnloaded">
 
 	<Grid>
 		<Grid.RowDefinitions>
@@ -59,13 +62,19 @@
 							BorderThickness="0" 
 							IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False"
 							Tapped="OnRootFolderPathBorder_Tapped">
-							<StackPanel Orientation="Horizontal">
-								<SymbolIcon Symbol="{Binding IsExpanded, Converter={StaticResource BoolToSymbol}}"/>
-								<TextBlock Grid.Row="0"
+							<Grid>
+								<Grid.ColumnDefinitions>
+									<ColumnDefinition Width="1*"/>
+									<ColumnDefinition Width="10*"/>
+									<ColumnDefinition Width="1*"/>
+								</Grid.ColumnDefinitions>
+								<SymbolIcon Grid.Column="0" Symbol="{Binding IsExpanded, Converter={StaticResource BoolToSymbol}}"/>
+								<TextBlock Grid.Column="1"
 									Text="{Binding FolderPath}"
 									TextWrapping="Wrap"
 									Margin="10"/>
-							</StackPanel>
+								<SymbolIcon Grid.Column="2" Symbol="Delete" Tapped="OnRemoveRootFolderIcon_Tapped"/>
+							</Grid>
 						</Border>
 						<ListView Grid.Row="1"
 								ItemsSource="{Binding Children}" 
@@ -102,4 +111,4 @@
 							AutoPlay="True"							
 							Source="{x:Bind VM.Source, Mode=OneWay}"/>
 	</Grid>
-</UserControl>
+</uctl:ObservableControl>
