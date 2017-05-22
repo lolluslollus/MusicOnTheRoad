@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Utilz;
 using Utilz.Data;
+using Windows.Media;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Storage;
@@ -54,13 +55,13 @@ namespace MusicOnTheRoad.ViewModels
 			FolderWithChildren expandedRootFolder = null;
 			await RunInUiThreadAsync(delegate
 			{
-				FoldersWithChildren.Clear();
+				_foldersWithChildren.Clear();
 				foreach (var folderPath in _persistentData.RootFolderPaths)
 				{
-					FoldersWithChildren.Add(new FolderWithChildren(folderPath));
+					_foldersWithChildren.Add(new FolderWithChildren(folderPath));
 				}
 				if (string.IsNullOrWhiteSpace(_persistentData.ExpandedRootFolderPath)) return;
-				expandedRootFolder = FoldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedRootFolderPath; });
+				expandedRootFolder = _foldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedRootFolderPath; });
 			}).ConfigureAwait(false);
 			if (expandedRootFolder == null) return;
 			await ToggleExpandRootFolderAsync(expandedRootFolder).ConfigureAwait(false);
@@ -74,6 +75,16 @@ namespace MusicOnTheRoad.ViewModels
 			LastMessage = message;
 		}
 
+		private void UpdateSongTitle(MusicDisplayProperties displayProperties)
+		{
+			if (displayProperties == null)
+			{
+				SongTitle = "Error displaying the song title";
+				return;
+			}
+
+			SongTitle = $"{displayProperties.Title} - {displayProperties.TrackNumber} of {displayProperties.AlbumTrackCount}";
+		}
 		private void UpdateAudioQuality(AudioTrack audioTrack)
 		{
 			if (audioTrack == null) return;
@@ -101,11 +112,21 @@ namespace MusicOnTheRoad.ViewModels
 
 			try
 			{
+				List<string> songTitles = new List<string>();
 				var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
 				var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
+
+				var displayProperties = mediaPlaybackItem.GetDisplayProperties();
+				displayProperties.Type = MediaPlaybackType.Music;
+				if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.Title)) displayProperties.MusicProperties.Title = file.Name;
+				displayProperties.MusicProperties.TrackNumber = 1;
+				displayProperties.MusicProperties.AlbumTrackCount = 1;
+				mediaPlaybackItem.ApplyDisplayProperties(displayProperties);
+
 				mediaPlaybackList.Items.Add(mediaPlaybackItem);
 
 				await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
+
 				RemoveMediaHandlers();
 				_source = mediaPlaybackList;
 				AddMediaHandlers();
@@ -128,19 +149,32 @@ namespace MusicOnTheRoad.ViewModels
 			var files = await folder.GetFilesAsync();
 
 			MediaPlaybackList mediaPlaybackList = null;
-			foreach (var file in files)
+			List<string> songTitles = new List<string>();
+			var musicFiles = files.Where((fi) => { return ConstantData.Extensions.Any((ext) => { return ext == fi.FileType; }); });
+			uint trackCount = 0;
+			uint albumTrackCount = musicFiles != null ? Convert.ToUInt32(musicFiles.Count()) : 0;
+			foreach (var file in musicFiles)
 			{
-				if (ConstantData.Extensions.Any((ext) => { return ext == file.FileType; }))
-				{
-					if (mediaPlaybackList == null) mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
-					var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
-					mediaPlaybackList.Items.Add(mediaPlaybackItem);
-				}
+				if (mediaPlaybackList == null) mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
+				var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
+
+				var displayProperties = mediaPlaybackItem.GetDisplayProperties();
+				displayProperties.Type = MediaPlaybackType.Music;
+				if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.AlbumTitle)) displayProperties.MusicProperties.AlbumTitle = nameAndPath.Name;
+				if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.Title)) displayProperties.MusicProperties.Title = file.Name;
+				trackCount++;
+				displayProperties.MusicProperties.TrackNumber = trackCount;
+				displayProperties.MusicProperties.AlbumTrackCount = albumTrackCount;
+				mediaPlaybackItem.ApplyDisplayProperties(displayProperties);
+
+				mediaPlaybackList.Items.Add(mediaPlaybackItem);
+				songTitles.Add(file.Name);
 			}
 
 			try
 			{
 				await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
+
 				RemoveMediaHandlers();
 				_source = mediaPlaybackList;
 				AddMediaHandlers();
@@ -161,17 +195,17 @@ namespace MusicOnTheRoad.ViewModels
 
 			_persistentData.AddRootFolderPath(folder.Path);
 
-			if (FoldersWithChildren.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
-			FoldersWithChildren.Add(new FolderWithChildren(folder.Path));
+			if (_foldersWithChildren.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
+			_foldersWithChildren.Add(new FolderWithChildren(folder.Path));
 		}
 		public void ClearRootFolders()
 		{
 			_persistentData.ClearRootFolders();
-			FoldersWithChildren.Clear();
+			_foldersWithChildren.Clear();
 		}
 		public void CollapseRootFolders()
 		{
-			foreach (var item in FoldersWithChildren)
+			foreach (var item in _foldersWithChildren)
 			{
 				item.Children.Clear();
 				item.IsExpanded = false;
@@ -192,14 +226,11 @@ namespace MusicOnTheRoad.ViewModels
 				{
 					_persistentData.ExpandedRootFolderPath = null;
 					isShrinking = true;
-					return;
 				}
-
-				IsLoadingChildren = true;
 			}).ConfigureAwait(false);
-
 			if (isShrinking) return;
 
+			IsLoadingChildren = true;
 			//Stopwatch sw = new Stopwatch();
 			//sw.Start();
 			//var sss = await StorageFolder.GetFolderFromPathAsync(folderWithChildren.FolderPath).AsTask().ConfigureAwait(false);
@@ -240,9 +271,9 @@ namespace MusicOnTheRoad.ViewModels
 		{
 			_persistentData.RemoveRootFolderPath(folderPath);
 
-			var toBeRemoved = FoldersWithChildren.FirstOrDefault((folderWithChildren) => { return folderWithChildren.FolderPath == folderPath; });
+			var toBeRemoved = _foldersWithChildren.FirstOrDefault((folderWithChildren) => { return folderWithChildren.FolderPath == folderPath; });
 			if (toBeRemoved == null) return;
-			FoldersWithChildren.Remove(toBeRemoved);
+			_foldersWithChildren.Remove(toBeRemoved);
 		}
 		#endregion user actions
 
@@ -295,7 +326,7 @@ namespace MusicOnTheRoad.ViewModels
 			var mediaPlaybackList = _source as MediaPlaybackList;
 			if (mediaPlaybackList != null)
 			{
-				//_mediaPlaybackList.CurrentItemChanged += OnMediaPlaybackList_CurrentItemChanged;
+				mediaPlaybackList.CurrentItemChanged += OnMediaPlaybackList_CurrentItemChanged;
 				mediaPlaybackList.ItemFailed += OnMediaPlaybackList_ItemFailed;
 				mediaPlaybackList.ItemOpened += OnMediaPlaybackList_ItemOpened;
 			}
@@ -308,7 +339,7 @@ namespace MusicOnTheRoad.ViewModels
 			var mediaPlaybackList = _source as MediaPlaybackList;
 			if (mediaPlaybackList != null)
 			{
-				//_mediaPlaybackList.CurrentItemChanged -= OnMediaPlaybackList_CurrentItemChanged;
+				mediaPlaybackList.CurrentItemChanged -= OnMediaPlaybackList_CurrentItemChanged;
 				mediaPlaybackList.ItemFailed -= OnMediaPlaybackList_ItemFailed;
 				mediaPlaybackList.ItemOpened -= OnMediaPlaybackList_ItemOpened;
 			}
@@ -331,7 +362,7 @@ namespace MusicOnTheRoad.ViewModels
 		private void OnMediaPlaybackList_CurrentItemChanged(MediaPlaybackList sender, CurrentMediaPlaybackItemChangedEventArgs args)
 		{
 			var currentAudioTrack = args?.NewItem?.AudioTracks?[0];
-			UpdateAudioQuality(currentAudioTrack);
+			UpdateSongTitle(currentAudioTrack?.PlaybackItem?.GetDisplayProperties()?.MusicProperties);
 		}
 		#endregion media event handlers
 

@@ -12,7 +12,7 @@
 	Loaded="OnLoaded"
 	Unloaded="OnUnloaded">
 	<uctl:ObservableControl.Resources>
-		<x:Double x:Key="LargeFontSize">18</x:Double>
+		<x:Double x:Key="LargeFontSize">16</x:Double>
 		<Thickness x:Key="MyMargin">10</Thickness>
 	</uctl:ObservableControl.Resources>
 
@@ -112,6 +112,7 @@
 				</DataTemplate>
 			</ListView.ItemTemplate>
 		</ListView>
+		
 		<!-- loading overlay -->
 		<Grid Grid.Row="0" Grid.RowSpan="2"
 			  Background="White"
@@ -134,7 +135,7 @@
 		<TextBlock Grid.Row="3" 
 				   FontSize="{StaticResource LargeFontSize}"
 				   Margin="{StaticResource MyMargin}"
-				   Text="{x:Bind VM.LastMessage, Mode=OneWay}"
+				   Text="{x:Bind VM.SongTitle, Mode=OneWay}"
 				   TextWrapping="WrapWholeWords"/>
 
 		<TextBlock Grid.Row="4" 
