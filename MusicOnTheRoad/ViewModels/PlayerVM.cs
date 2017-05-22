@@ -2,6 +2,7 @@
 using MusicOnTheRoad.Services;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,55 +16,100 @@ using Windows.Storage.Pickers;
 
 namespace MusicOnTheRoad.ViewModels
 {
-	public class PlayerVM : ObservableData, IDisposable
+	public sealed class PlayerVM : ObservableData, IDisposable
 	{
 		private readonly PersistentData _persistentData = null;
 		public PersistentData PersistentData { get { return _persistentData; } }
 		private readonly MediaPlayer _mediaPlayer = null;
-		private IMediaPlaybackSource _source = null;
+		private volatile IMediaPlaybackSource _source = null;
+		private readonly SemaphoreSlimSafeRelease _mediaSourceSemaphore = null;
+
 		public IMediaPlaybackSource Source { get { return _source; } }
 		private readonly SwitchableObservableCollection<FolderWithChildren> _foldersWithChildren = new SwitchableObservableCollection<FolderWithChildren>();
 		public SwitchableObservableCollection<FolderWithChildren> FoldersWithChildren { get { return _foldersWithChildren; } }
 		private string _lastMessage = null;
-		public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged(); } }
+		public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged_UI(); } }
+		private bool _isLoadingChildren = false;
+		public bool IsLoadingChildren { get { return _isLoadingChildren; } private set { _isLoadingChildren = value; RaisePropertyChanged_UI(); } }
 
 		public PlayerVM(MediaPlayer mediaPlayer)
 		{
+			_mediaSourceSemaphore = new SemaphoreSlimSafeRelease(1, 1);
 			_mediaPlayer = mediaPlayer;
+			AddMediaHandlers();
 
 			_persistentData = PersistentData.GetInstance();
 			RaisePropertyChanged(nameof(PersistentData));
 
 			AddDataChangedHandlers();
-			Task upd0 = UpdateLastMessage();
-			Task upd1 = UpdateFoldersWithChildren();
+			UpdateLastMessage();
+			Task upd1 = UpdateFoldersWithChildrenAsync();
 		}
 
-		private Task UpdateFoldersWithChildren()
+		#region updaters
+		private async Task UpdateFoldersWithChildrenAsync()
 		{
-			return RunInUiThreadAsync(delegate
+			FolderWithChildren expandedRootFolder = null;
+			await RunInUiThreadAsync(delegate
 			{
 				FoldersWithChildren.Clear();
 				foreach (var folderPath in _persistentData.RootFolderPaths)
 				{
 					FoldersWithChildren.Add(new FolderWithChildren(folderPath));
 				}
-			});
+				if (string.IsNullOrWhiteSpace(_persistentData.ExpandedRootFolderPath)) return;
+				expandedRootFolder = FoldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedRootFolderPath; });
+			}).ConfigureAwait(false);
+			if (expandedRootFolder == null) return;
+			await ToggleExpandRootFolderAsync(expandedRootFolder).ConfigureAwait(false);
 		}
-		private Task UpdateLastMessage()
+		private void UpdateLastMessage()
 		{
-			return RunInUiThreadAsync(delegate
-			{
-				LastMessage = _persistentData.LastMessage;
-			});
+			LastMessage = _persistentData.LastMessage;
 		}
+		private void UpdateLastMessage(string message)
+		{
+			LastMessage = message;
+		}
+
+		private void UpdateAudioQuality(AudioTrack audioTrack)
+		{
+			if (audioTrack == null) return;
+			try
+			{
+				var encodingProperties = audioTrack?.GetEncodingProperties();
+				var supportInfo = audioTrack?.SupportInfo;
+				if (supportInfo == null || encodingProperties == null) return;
+
+				string audioQuality = $"{encodingProperties.ChannelCount} channels, {encodingProperties.BitsPerSample} bit, {encodingProperties.SampleRate} kHz, {encodingProperties.Subtype}, {encodingProperties.Bitrate} bits/sec, {supportInfo.DecoderStatus}";
+				UpdateLastMessage(audioQuality);
+			}
+			catch (Exception ex)
+			{
+				Debug.WriteLine(ex.ToString());
+			}
+		}
+		#endregion updaters
 
 		#region user actions
 		public async Task<bool> SetSourceFileAsync()
 		{
 			var file = await Utilz.Pickers.PickOpenFileAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
 			if (file == null) return false;
-			_source = MediaSource.CreateFromStorageFile(file);
+
+			try
+			{
+				await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
+
+				RemoveMediaHandlers();
+				_source = MediaSource.CreateFromStorageFile(file);
+				AddMediaHandlers();
+			}
+			finally
+			{
+				SemaphoreSlimSafeRelease.TryRelease(_mediaSourceSemaphore);
+			}
+
 			RaisePropertyChanged_UI(nameof(Source));
 			return true;
 		}
@@ -75,6 +121,7 @@ namespace MusicOnTheRoad.ViewModels
 			if (folder == null) return false;
 
 			var files = await folder.GetFilesAsync();
+
 			MediaPlaybackList mediaPlaybackList = null;
 			foreach (var file in files)
 			{
@@ -86,12 +133,23 @@ namespace MusicOnTheRoad.ViewModels
 				}
 			}
 
-			_source = mediaPlaybackList;
-
+			try
+			{
+				await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
+				RemoveMediaHandlers();
+				//_source = _mediaPlaybackList = mediaPlaybackList;
+				_source = mediaPlaybackList;
+				AddMediaHandlers();
+			}
+			finally
+			{
+				SemaphoreSlimSafeRelease.TryRelease(_mediaSourceSemaphore);
+			}
 
 			RaisePropertyChanged_UI(nameof(Source));
 			return true;
 		}
+
 		public async Task AddRootFolderAsync()
 		{
 			var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
@@ -116,23 +174,62 @@ namespace MusicOnTheRoad.ViewModels
 			}
 		}
 
-		public void ToggleExpandRootFolder(FolderWithChildren folderWithChildren)
+		public async Task ToggleExpandRootFolderAsync(FolderWithChildren folderWithChildren)
 		{
-			var toBeExpanded = FoldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
-			bool isExpanded = toBeExpanded?.Children.Count > 0;
-			CollapseRootFolders();
+			FolderWithChildren toBeExpanded = null;
+			bool isShrinking = false;
+			await RunInUiThreadAsync(delegate
+			{
+				toBeExpanded = _foldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
+				bool isExpanded = toBeExpanded?.Children?.Count > 0;
+				CollapseRootFolders();
 
-			if (toBeExpanded == null || isExpanded) return;
+				if (toBeExpanded == null || isExpanded)
+				{
+					_persistentData.ExpandedRootFolderPath = null;
+					isShrinking = true;
+					return;
+				}
 
-			// LOLLO TODO put this away in a separate thread				
+				IsLoadingChildren = true;
+			}).ConfigureAwait(false);
+
+			if (isShrinking) return;
+
+			//Stopwatch sw = new Stopwatch();
+			//sw.Start();
+			//var sss = await StorageFolder.GetFolderFromPathAsync(folderWithChildren.FolderPath).AsTask().ConfigureAwait(false);
+			//var childrenn = await sss.GetFoldersAsync().AsTask().ConfigureAwait(false);
+			//sw.Stop();
+			//Debug.WriteLine($"sw1 took {sw.ElapsedMilliseconds} msec");
+
+			//sw.Restart();
+			//sss = await StorageFolder.GetFolderFromPathAsync(folderWithChildren.FolderPath).AsTask().ConfigureAwait(false);
+			//var query = sss.CreateFolderQuery();
+			//var childrennn = await query.GetFoldersAsync().AsTask().ConfigureAwait(false);
+
+			//sw.Stop();
+			//Debug.WriteLine($"sw2 took {sw.ElapsedMilliseconds} msec");
+
+			//sw.Restart();
+			// LOLLO NOTE the StorageFolder methods are not faster
 			string[] paths = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
 			List<NameAndPath> children = new List<NameAndPath>();
-			foreach (var path in paths)
+			//sw.Stop();
+			//Debug.WriteLine($"sw3 took {sw.ElapsedMilliseconds} msec");
+
+			await RunInUiThreadAsync(delegate
 			{
-				children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
-			}
-			toBeExpanded.Children.AddRange(children);
-			toBeExpanded.IsExpanded = true;
+				foreach (var path in paths)
+				{
+					children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
+				}
+				toBeExpanded.Children.AddRange(children);
+				toBeExpanded.IsExpanded = true;
+				_persistentData.ExpandedRootFolderPath = toBeExpanded.FolderPath;
+
+				IsLoadingChildren = false;
+			}).ConfigureAwait(false);
 		}
 
 		public void RemoveRootFolder(string folderPath)
@@ -151,27 +248,35 @@ namespace MusicOnTheRoad.ViewModels
 		{
 			if (_isDataChangedHandlersActive) return;
 			SuspensionManager.Loaded += OnSuspensionManager_Loaded;
-			_persistentData.PropertyChanged += OnPersistentData_PropertyChanged;
+			var persistentData = _persistentData;
+			if (persistentData != null)
+			{
+				persistentData.PropertyChanged += OnPersistentData_PropertyChanged;
+			}
 			_isDataChangedHandlersActive = true;
 		}
 		private void RemoveDataChangedHandlers()
 		{
 			SuspensionManager.Loaded -= OnSuspensionManager_Loaded;
-			_persistentData.PropertyChanged -= OnPersistentData_PropertyChanged;
+			var persistentData = _persistentData;
+			if (persistentData != null)
+			{
+				persistentData.PropertyChanged -= OnPersistentData_PropertyChanged;
+			}
 			_isDataChangedHandlersActive = false;
 		}
 
 		private void OnSuspensionManager_Loaded(object sender, bool e)
 		{
-			Task upd0 = UpdateLastMessage();
-			Task upd1 = UpdateFoldersWithChildren();
+			UpdateLastMessage();
+			Task upd1 = UpdateFoldersWithChildrenAsync();
 		}
 
 		private void OnPersistentData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
 		{
 			if (e.PropertyName == nameof(PersistentData.LastMessage))
 			{
-				Task upd = UpdateLastMessage();
+				UpdateLastMessage();
 			}
 		}
 		#endregion data event handlers
@@ -182,40 +287,101 @@ namespace MusicOnTheRoad.ViewModels
 		private void AddMediaHandlers()
 		{
 			if (_isMediaHandlersActive) return;
-			_mediaPlayer.MediaEnded += OnMediaPlayer_MediaEnded;
-			_mediaPlayer.MediaFailed += OnMediaPlayer_MediaFailed;
-			_mediaPlayer.MediaOpened += OnMediaPlayer_MediaOpened;
+
+			var mediaPlaybackList = _source as MediaPlaybackList;
+			if (mediaPlaybackList != null)
+			{
+				//_mediaPlaybackList.CurrentItemChanged += OnMediaPlaybackList_CurrentItemChanged;
+				mediaPlaybackList.ItemFailed += OnMediaPlaybackList_ItemFailed;
+				mediaPlaybackList.ItemOpened += OnMediaPlaybackList_ItemOpened;
+			}
+
+			var mediaSource = _source as MediaSource;
+			if (mediaSource != null)
+			{
+				//_mediaPlayer.MediaEnded += OnMediaPlayer_MediaEnded;
+				_mediaPlayer.MediaFailed += OnMediaPlayer_MediaFailed;
+				_mediaPlayer.MediaOpened += OnMediaPlayer_MediaOpened;
+				//mediaSource.OpenOperationCompleted += OnMediaSource_OpenOperationCompleted;
+				//mediaSource.StateChanged += OnMediaSource_StateChanged;
+			}
+
 			_isMediaHandlersActive = true;
 		}
 
 		private void RemoveMediaHandlers()
 		{
-			_mediaPlayer.MediaEnded -= OnMediaPlayer_MediaEnded;
-			_mediaPlayer.MediaFailed -= OnMediaPlayer_MediaFailed;
-			_mediaPlayer.MediaOpened -= OnMediaPlayer_MediaOpened;
+			var mediaPlaybackList = _source as MediaPlaybackList;
+			if (mediaPlaybackList != null)
+			{
+				//_mediaPlaybackList.CurrentItemChanged -= OnMediaPlaybackList_CurrentItemChanged;
+				mediaPlaybackList.ItemFailed -= OnMediaPlaybackList_ItemFailed;
+				mediaPlaybackList.ItemOpened -= OnMediaPlaybackList_ItemOpened;
+			}
+
+			var mediaSource = _source as MediaSource;
+			if (mediaSource != null)
+			{
+				//_mediaPlayer.MediaEnded -= OnMediaPlayer_MediaEnded;
+				_mediaPlayer.MediaFailed -= OnMediaPlayer_MediaFailed;
+				_mediaPlayer.MediaOpened -= OnMediaPlayer_MediaOpened;
+				//mediaSource.OpenOperationCompleted -= OnMediaSource_OpenOperationCompleted;
+				//mediaSource.StateChanged -= OnMediaSource_StateChanged;
+			}
+
 			_isMediaHandlersActive = false;
 		}
 
-		private void OnMediaPlayer_MediaOpened(Windows.Media.Playback.MediaPlayer sender, object args)
+		private void OnMediaPlayer_MediaOpened(MediaPlayer sender, object args)
 		{
-			throw new NotImplementedException();
+			var mediaSource = sender.Source;
+			var currentAudioTrack = (mediaSource as MediaSource)?.CurrentItem?.AudioTracks?[0];
+			UpdateAudioQuality(currentAudioTrack);
 		}
 
-		private void OnMediaPlayer_MediaFailed(Windows.Media.Playback.MediaPlayer sender, Windows.Media.Playback.MediaPlayerFailedEventArgs args)
+		private void OnMediaPlayer_MediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
 		{
-			throw new NotImplementedException();
+			var message = args?.ErrorMessage;
+			UpdateLastMessage(message == null ? "media error" : message);
 		}
 
-		private void OnMediaPlayer_MediaEnded(Windows.Media.Playback.MediaPlayer sender, object args)
+		private void OnMediaPlayer_MediaEnded(MediaPlayer sender, object args)
 		{
-			throw new NotImplementedException();
+			//throw new NotImplementedException();
+		}
+		private void OnMediaPlaybackList_ItemOpened(MediaPlaybackList sender, MediaPlaybackItemOpenedEventArgs args)
+		{
+			var currentAudioTrack = args?.Item?.AudioTracks?[0];
+			UpdateAudioQuality(currentAudioTrack);
+		}
+
+		private void OnMediaPlaybackList_ItemFailed(MediaPlaybackList sender, MediaPlaybackItemFailedEventArgs args)
+		{
+			var message = args?.Error?.ExtendedError?.Message;
+			UpdateLastMessage(message == null ? "media error" : message);
+		}
+
+		private void OnMediaPlaybackList_CurrentItemChanged(MediaPlaybackList sender, CurrentMediaPlaybackItemChangedEventArgs args)
+		{
+			var currentAudioTrack = args?.NewItem?.AudioTracks?[0];
+			UpdateAudioQuality(currentAudioTrack);
+		}
+
+		private void OnMediaSource_StateChanged(MediaSource sender, MediaSourceStateChangedEventArgs args)
+		{
+			//throw new NotImplementedException();
+		}
+
+		private void OnMediaSource_OpenOperationCompleted(MediaSource sender, MediaSourceOpenOperationCompletedEventArgs args)
+		{
+			//throw new NotImplementedException();
 		}
 		#endregion media event handlers
 
 		#region IDisposable Support
 		private bool isDisposed = false; // To detect redundant calls
 
-		protected virtual void Dispose(bool isDisposing)
+		private /*virtual*/ void Dispose(bool isDisposing)
 		{
 			if (!isDisposed)
 			{
@@ -224,6 +390,7 @@ namespace MusicOnTheRoad.ViewModels
 					// TODO: dispose managed state (managed objects).
 					RemoveDataChangedHandlers();
 					RemoveMediaHandlers();
+					SemaphoreSlimSafeRelease.TryDispose(_mediaSourceSemaphore);
 				}
 
 				// TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.

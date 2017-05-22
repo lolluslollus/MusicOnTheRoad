@@ -73,7 +73,7 @@ namespace MusicOnTheRoad.Services
 			}
 			finally
 			{
-				if (!string.IsNullOrWhiteSpace(errorMessage)) PersistentData.GetInstance().LastMessage = errorMessage;
+				PersistentData.GetInstance().LastMessage = errorMessage;
 				SemaphoreSlimSafeRelease.TryRelease(_suspensionSemaphore);
 			}
 		}

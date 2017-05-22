@@ -43,12 +43,14 @@ namespace MusicOnTheRoad.Data
 		{
 			if (source == null || target == null) return;
 
+			target.ExpandedRootFolderPath = source.ExpandedRootFolderPath;
 			target.LastMessage = source.LastMessage;
 			target.RootFolderPaths.Clear();
 			target.RootFolderPaths.AddRange(source.RootFolderPaths);
 		}
 		#endregion lifecycle
 
+		#region properties
 		private readonly SwitchableObservableCollection<string> _rootFolderPaths = new SwitchableObservableCollection<string>();
 		public SwitchableObservableCollection<string> RootFolderPaths { get { return _rootFolderPaths; } }
 
@@ -73,5 +75,8 @@ namespace MusicOnTheRoad.Data
 		private string _lastMessage = string.Empty;
 		public string LastMessage { get { return _lastMessage; } set { _lastMessage = value; RaisePropertyChanged_UI(); } }
 
+		private string _expandedRootFolderPath = null;
+		public string ExpandedRootFolderPath { get { return _expandedRootFolderPath; } set { _expandedRootFolderPath = value; RaisePropertyChanged_UI(); } }
+		#endregion properties
 	}
 }
