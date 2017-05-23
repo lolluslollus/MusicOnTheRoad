@@ -10,10 +10,11 @@
     d:DesignHeight="300"
     d:DesignWidth="400"
 	Loaded="OnLoaded"
-	Unloaded="OnUnloaded">
+	Unloaded="OnUnloaded" HorizontalContentAlignment="Stretch">
     <uctl:ObservableControl.Resources>
         <x:Double x:Key="LargeFontSize">16</x:Double>
-        <Thickness x:Key="MyMargin">10</Thickness>
+        <Thickness x:Key="Margin10">10</Thickness>
+        <Thickness x:Key="MarginSmall">5</Thickness>
         <!--<Storyboard x:Name="ShowLoadingOverlay">
             <ObjectAnimationUsingKeyFrames Storyboard.TargetProperty="(UIElement.Visibility)" Storyboard.TargetName="LoadingOverlay">
                 <DiscreteObjectKeyFrame KeyTime="0:0:0.1">
@@ -36,38 +37,64 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="1*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="5*"/>
             <RowDefinition Height="2*"/>
-            <RowDefinition Height="1*"/>
-            <RowDefinition Height="1*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <ProgressRing Grid.RowSpan="5"
                       Canvas.ZIndex="999"
 			IsActive="{x:Bind VM.IsLoadingChildren, Mode=OneWay}"
-			Visibility="{x:Bind VM.IsLoadingChildren, Converter={StaticResource BoolToVisible}, Mode=OneWay}" Width="120" Height="120"/>
+			Visibility="{x:Bind VM.IsLoadingChildren, Converter={StaticResource BoolToVisible}, Mode=OneWay}"/>
 
-        <uctl:UniversalWrapPanel Orientation="Horizontal">
-            <Button Grid.Column="0" Click="OnPickFolderButton_Click">
-                <TextBlock Text="Pick a folder"/>
+        <uctl:UniversalWrapPanel Orientation="Horizontal" HorizontalAlignment="Stretch">
+            <Button Click="{x:Bind VM.PickSourceFolderAsync}" Style="{StaticResource Button0}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+                    <SymbolIcon Symbol="Folder"/>
+                    <TextBlock Grid.Column="1" Text="Pick a folder" Margin="{StaticResource MarginSmall}"/>
+                </Grid>
             </Button>
-            <Button Grid.Column="1" Click="{x:Bind VM.SetSourceFileAsync}">
-                <TextBlock Text="Pick a file"/>
+            <Button Click="{x:Bind VM.PickSourceFileAsync}" Style="{StaticResource Button0}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+                    <SymbolIcon Symbol="OpenFile"/>
+                    <TextBlock Grid.Column="1" Text="Pick a file" Margin="{StaticResource MarginSmall}"/>
+                </Grid>
             </Button>
-            <Button Grid.Column="2" Click="{x:Bind VM.AddRootFolderAsync}">
-                <TextBlock Text="Pin a folder"/>
+            <Button Click="{x:Bind VM.PinRootFolderAsync}" Style="{StaticResource Button0}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+                    <SymbolIcon Symbol="Pin"/>
+                    <TextBlock Grid.Column="1" Text="Pin a folder" Margin="{StaticResource MarginSmall}"/>
+                </Grid>
             </Button>
-            <Button Grid.Column="3" Click="{x:Bind VM.ClearRootFolders}">
-                <TextBlock Text="Unpin folders"/>
+            <Button Click="{x:Bind VM.UnpinRootFolders}" Style="{StaticResource Button0}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+                    <SymbolIcon Symbol="UnPin"/>
+                    <TextBlock Grid.Column="1" Text="Unpin folders" Margin="{StaticResource MarginSmall}"/>
+                </Grid>
             </Button>
         </uctl:UniversalWrapPanel>
 
         <ListView Grid.Row="1" 
-				  ItemsSource="{x:Bind VM.FoldersWithChildren, Mode=OneWay}" 
-				  ItemClick="OnListView_ItemClick" 
-				  SelectionMode="Single" 
-				  SelectionChanged="OnListView_SelectionChanged">
+				  ItemsSource="{x:Bind VM.FoldersWithChildren, Mode=OneWay}"
+				  SelectionMode="Single">
             <!--<ListView.ItemsPanel>
 				<ItemsPanelTemplate>
 					<VirtualizingStackPanel Orientation="Vertical"/>
@@ -95,32 +122,34 @@
                                 <TextBlock Grid.Column="1"
 									Text="{Binding FolderPath}"
 									TextWrapping="Wrap"
-									Margin="{StaticResource MyMargin}"/>
+									Margin="{StaticResource Margin10}"/>
                                 <Border Grid.Column="2" Background="Transparent" Tapped="OnRemoveRootFolderIcon_Tapped">
-                                    <SymbolIcon Symbol="Delete"/>
+                                    <SymbolIcon Symbol="UnPin"/>
                                 </Border>
                             </Grid>
                         </Border>
                         <ListView Grid.Row="1"
-								ItemsSource="{Binding Children}" 
-								ItemClick="OnChildListView_ItemClick" 
-								SelectionMode="Single" 
-								SelectionChanged="OnChildListView_SelectionChanged">
+								ItemsSource="{Binding Children}"
+								SelectionMode="Single">
                             <!--<ListView.ItemsPanel>
 								<ItemsPanelTemplate>
 									<VirtualizingStackPanel Orientation="Vertical"/>
 								</ItemsPanelTemplate>
 							</ListView.ItemsPanel>-->
+                            <!--<ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ItemsWrapGrid Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>-->
                             <ListView.ItemTemplate>
                                 <DataTemplate>
                                     <Border 
 										Background="Transparent"
-										BorderThickness="0" 
-										IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False"
+										BorderThickness="0"
 										Tapped="OnChildFolderBorder_Tapped">
                                         <TextBlock Text="{Binding Name}"
 											TextWrapping="Wrap"
-											Margin="{StaticResource MyMargin}"/>
+											Margin="{StaticResource Margin10}"/>
                                     </Border>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -151,13 +180,13 @@
 
         <TextBlock Grid.Row="3" 
 				   FontSize="{StaticResource LargeFontSize}"
-				   Margin="{StaticResource MyMargin}"
+				   Margin="{StaticResource Margin10}"
 				   Text="{x:Bind VM.SongTitle, Mode=OneWay}"
 				   TextWrapping="WrapWholeWords"/>
 
         <TextBlock Grid.Row="4" 
 				   FontSize="{StaticResource LargeFontSize}"
-				   Margin="{StaticResource MyMargin}"
+				   Margin="{StaticResource Margin10}"
 				   Text="{x:Bind VM.LastMessage, Mode=OneWay}"
 				   TextWrapping="WrapWholeWords"/>
     </Grid>

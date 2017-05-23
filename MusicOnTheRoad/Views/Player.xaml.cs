@@ -81,37 +81,9 @@ namespace MusicOnTheRoad.Views
             }
 			_vm = null;
 		}
-		#endregion lifecycle
+        #endregion lifecycle
 
-		private void OnListView_ItemClick(object sender, ItemClickEventArgs e)
-		{
-			//_vm.RemoveRootFolder(e.ClickedItem.ToString());
-		}
-
-		private void OnListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			//var selectedItem = (sender as ListView).SelectedItem;
-			//var selectedValue = (sender as ListView).SelectedValue;
-			//_vm.ExpandRootFolder(selectedValue as FolderWithChildren);
-		}
-		private void OnChildListView_ItemClick(object sender, ItemClickEventArgs e)
-		{
-			//_vm.RemoveRootFolder(e.ClickedItem.ToString());
-		}
-
-		private async void OnChildListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
-		{
-			//var selectedItem = (sender as ListView).SelectedItem;
-			//var selectedValue = (sender as ListView).SelectedValue;
-			//await _vm.SetSourceFolderAsync(selectedValue.ToString()).ConfigureAwait(false);
-		}
-
-		private async void OnPickFolderButton_Click(object sender, RoutedEventArgs e)
-		{
-			await _vm.SetSourceFolderAsync().ConfigureAwait(false);
-		}
-
-		private async void OnRootFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
+        private async void OnRootFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
 		{
 			await _vm.ToggleExpandRootFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren).ConfigureAwait(false);
 		}

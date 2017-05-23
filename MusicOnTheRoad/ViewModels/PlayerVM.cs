@@ -107,7 +107,7 @@ namespace MusicOnTheRoad.ViewModels
         #endregion updaters
 
         #region user actions
-        public async Task<bool> SetSourceFileAsync()
+        public async Task<bool> PickSourceFileAsync()
         {
             var file = await Utilz.Pickers.PickOpenFileAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
             if (file == null) return false;
@@ -141,11 +141,28 @@ namespace MusicOnTheRoad.ViewModels
             RaisePropertyChanged_UI(nameof(Source));
             return true;
         }
-        public async Task<bool> SetSourceFolderAsync(NameAndPath nameAndPath = null)
+        public async Task<bool> PickSourceFolderAsync()
         {
-            StorageFolder folder = null;
-            if (nameAndPath == null || String.IsNullOrWhiteSpace(nameAndPath.Path)) folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
-            else folder = await StorageFolder.GetFolderFromPathAsync(nameAndPath.Path);
+            var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
+            if (folder == null) return false;
+
+            bool result = await SetSourceFolderAsync(folder);
+
+            return result;
+        }
+        public async Task<bool> SetSourceFolderAsync(NameAndPath nameAndPath)
+        {
+            if (nameAndPath == null || nameAndPath.Path == null) return false;
+
+            var folder = await StorageFolder.GetFolderFromPathAsync(nameAndPath.Path);
+            if (folder == null) return false;
+
+            bool result = await SetSourceFolderAsync(folder);
+
+            return result;
+        }
+        private async Task<bool> SetSourceFolderAsync(StorageFolder folder)
+        {
             if (folder == null) return false;
 
             var files = await folder.GetFilesAsync();
@@ -162,7 +179,7 @@ namespace MusicOnTheRoad.ViewModels
 
                 var displayProperties = mediaPlaybackItem.GetDisplayProperties();
                 displayProperties.Type = MediaPlaybackType.Music;
-                if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.AlbumTitle)) displayProperties.MusicProperties.AlbumTitle = nameAndPath.Name;
+                if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.AlbumTitle)) displayProperties.MusicProperties.AlbumTitle = folder.Name;
                 if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.Title)) displayProperties.MusicProperties.Title = file.Name;
                 trackCount++;
                 displayProperties.MusicProperties.TrackNumber = trackCount;
@@ -190,7 +207,7 @@ namespace MusicOnTheRoad.ViewModels
             return true;
         }
 
-        public async Task AddRootFolderAsync()
+        public async Task PinRootFolderAsync()
         {
             var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
             if (folder == null) return;
@@ -200,7 +217,7 @@ namespace MusicOnTheRoad.ViewModels
             if (_foldersWithChildren.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
             _foldersWithChildren.Add(new FolderWithChildren(folder.Path));
         }
-        public void ClearRootFolders()
+        public void UnpinRootFolders()
         {
             _persistentData.ClearRootFolders();
             _foldersWithChildren.Clear();
