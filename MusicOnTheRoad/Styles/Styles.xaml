@@ -612,7 +612,7 @@
         </Setter>
     </Style>
     
-    <!-- Default style for Windows.UI.Xaml.Controls.ListView -->
+    <!-- Default style for Windows.UI.Xaml.Controls.ListView + ItemContainerStyle added -->
     <Style TargetType="ListView">
         <Setter Property="IsTabStop" Value="False" />
         <Setter Property="TabNavigation" Value="Once" />
@@ -627,6 +627,13 @@
         <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="False" />
         <Setter Property="ScrollViewer.BringIntoViewOnFocusChange" Value="True" />
         <Setter Property="UseSystemFocusVisuals" Value="True" />
+        <Setter Property="ItemContainerStyle">
+            <Setter.Value>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                </Style>
+            </Setter.Value>
+        </Setter>
         <Setter Property="ItemContainerTransitions">
             <Setter.Value>
                 <TransitionCollection>

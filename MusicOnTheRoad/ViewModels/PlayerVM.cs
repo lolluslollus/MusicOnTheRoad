@@ -15,6 +15,10 @@ using Windows.Storage;
 using Windows.Storage.AccessCache;
 using Windows.Storage.Pickers;
 
+// LOLLO TODO see if you can show the waiting ring while the listview populates. This is annoying.
+// LOLLO TODO see if you can scroll the inner listview but not the outer one, with proper styles.
+// LOLLO TODO see if you can use NameAndPath for the root folders, like you do for their children. Not very useful, actually, maybe even bad.
+
 namespace MusicOnTheRoad.ViewModels
 {
 	public sealed class PlayerVM : ObservableData, IDisposable
@@ -256,12 +260,13 @@ namespace MusicOnTheRoad.ViewModels
                 //sw.Stop();
                 //Debug.WriteLine($"sw3 took {sw.ElapsedMilliseconds} msec");
 
+                foreach (var path in paths)
+                {
+                    children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
+                }
+
                 await RunInUiThreadAsync(delegate
                 {
-                    foreach (var path in paths)
-                    {
-                        children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
-                    }
                     toBeExpanded.Children.AddRange(children);
                     toBeExpanded.IsExpanded = true;
                     _persistentData.ExpandedRootFolderPath = toBeExpanded.FolderPath;
