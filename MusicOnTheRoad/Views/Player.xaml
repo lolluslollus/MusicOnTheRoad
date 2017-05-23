@@ -44,8 +44,9 @@
         </Grid.RowDefinitions>
 
         <ProgressRing Grid.RowSpan="5"
+                      Canvas.ZIndex="999"
 			IsActive="{x:Bind VM.IsLoadingChildren, Mode=OneWay}"
-			Visibility="{x:Bind VM.IsLoadingChildren, Converter={StaticResource BoolToVisible}, Mode=OneWay}" Width="80" Height="80"/>
+			Visibility="{x:Bind VM.IsLoadingChildren, Converter={StaticResource BoolToVisible}, Mode=OneWay}" Width="120" Height="120"/>
 
         <uctl:UniversalWrapPanel Orientation="Horizontal">
             <Button Grid.Column="0" Click="OnPickFolderButton_Click">
