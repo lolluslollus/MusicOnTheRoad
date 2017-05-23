@@ -67,11 +67,6 @@
 				  ItemClick="OnListView_ItemClick" 
 				  SelectionMode="Single" 
 				  SelectionChanged="OnListView_SelectionChanged">
-            <ListView.Transitions>
-                <TransitionCollection>
-                </TransitionCollection>
-            </ListView.Transitions>
-
             <!--<ListView.ItemsPanel>
 				<ItemsPanelTemplate>
 					<VirtualizingStackPanel Orientation="Vertical"/>
@@ -110,11 +105,6 @@
 								ItemClick="OnChildListView_ItemClick" 
 								SelectionMode="Single" 
 								SelectionChanged="OnChildListView_SelectionChanged">
-                            <ListView.Transitions>
-                                <TransitionCollection>
-                                </TransitionCollection>
-                            </ListView.Transitions>
-
                             <!--<ListView.ItemsPanel>
 								<ItemsPanelTemplate>
 									<VirtualizingStackPanel Orientation="Vertical"/>
