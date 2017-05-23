@@ -631,26 +631,11 @@
         <Setter Property="ScrollViewer.IsDeferredScrollingEnabled" Value="False" />
         <Setter Property="ScrollViewer.BringIntoViewOnFocusChange" Value="True" />
         <Setter Property="UseSystemFocusVisuals" Value="True" />
-        <Setter Property="Transitions">
-            <Setter.Value>
-                <TransitionCollection></TransitionCollection>
-            </Setter.Value>
-        </Setter>
-        <Setter Property="HeaderTransitions">
-            <Setter.Value>
-                <TransitionCollection></TransitionCollection>
-            </Setter.Value>
-        </Setter>
-        <Setter Property="FooterTransitions">
-            <Setter.Value>
-                <TransitionCollection></TransitionCollection>
-            </Setter.Value>
-        </Setter>
         <Setter Property="ItemContainerTransitions">
             <Setter.Value>
                 <TransitionCollection>
-                    <!--<AddDeleteThemeTransition />
-                    <ContentThemeTransition />
+                    <AddDeleteThemeTransition />
+                    <!--<ContentThemeTransition />
                     <ReorderThemeTransition />
                     <EntranceThemeTransition IsStaggeringEnabled="False" />-->
                 </TransitionCollection>
@@ -660,16 +645,6 @@
             <Setter.Value>
                 <Style TargetType="ListViewItem">
                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                    <Setter Property="ContentTransitions">
-                        <Setter.Value>
-                            <TransitionCollection></TransitionCollection>
-                        </Setter.Value>
-                    </Setter>
-                    <Setter Property="Transitions">
-                        <Setter.Value>
-                            <TransitionCollection></TransitionCollection>
-                        </Setter.Value>
-                    </Setter>
                 </Style>
             </Setter.Value>
         </Setter>
@@ -677,14 +652,7 @@
         <Setter Property="ItemsPanel">
             <Setter.Value>
                 <ItemsPanelTemplate>
-                    <ItemsStackPanel Orientation="Vertical" >
-                        <ItemsStackPanel.Transitions>
-                            <TransitionCollection></TransitionCollection>
-                        </ItemsStackPanel.Transitions>
-                        <ItemsStackPanel.ChildrenTransitions>
-                            <TransitionCollection></TransitionCollection>
-                        </ItemsStackPanel.ChildrenTransitions>
-                    </ItemsStackPanel>
+                    <ItemsStackPanel Orientation="Vertical"/>
                 </ItemsPanelTemplate>
             </Setter.Value>
         </Setter>
