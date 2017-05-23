@@ -33,7 +33,7 @@ namespace MusicOnTheRoad.ViewModels
 		private string _songTitle = null;
 		public string SongTitle { get { return _songTitle; } private set { _songTitle = value; RaisePropertyChanged_UI(); } }
 		private bool _isLoadingChildren = false;
-		public bool IsLoadingChildren { get { return _isLoadingChildren; } private set { _isLoadingChildren = value; RaisePropertyChanged_UI(); } }
+		public bool IsLoadingChildren { get { return _isLoadingChildren; } private set { if (_isLoadingChildren != value) { _isLoadingChildren = value; RaisePropertyChanged_UI(); } } }
 
 		public PlayerVM(MediaPlayer mediaPlayer)
 		{
@@ -214,57 +214,63 @@ namespace MusicOnTheRoad.ViewModels
 
 		public async Task ToggleExpandRootFolderAsync(FolderWithChildren folderWithChildren)
 		{
-			FolderWithChildren toBeExpanded = null;
-			bool isShrinking = false;
-			await RunInUiThreadAsync(delegate
-			{
-				toBeExpanded = _foldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
-				bool isExpanded = toBeExpanded?.Children?.Count > 0;
-				CollapseRootFolders();
+            try
+            {
+                IsLoadingChildren = true;
 
-				if (toBeExpanded == null || isExpanded)
-				{
-					_persistentData.ExpandedRootFolderPath = null;
-					isShrinking = true;
-				}
-			}).ConfigureAwait(false);
-			if (isShrinking) return;
+                FolderWithChildren toBeExpanded = null;
+                bool isShrinking = false;
+                await RunInUiThreadAsync(delegate
+                {
+                    toBeExpanded = _foldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
+                    bool isExpanded = toBeExpanded?.Children?.Count > 0;
+                    CollapseRootFolders();
 
-			IsLoadingChildren = true;
-			//Stopwatch sw = new Stopwatch();
-			//sw.Start();
-			//var sss = await StorageFolder.GetFolderFromPathAsync(folderWithChildren.FolderPath).AsTask().ConfigureAwait(false);
-			//var childrenn = await sss.GetFoldersAsync().AsTask().ConfigureAwait(false);
-			//sw.Stop();
-			//Debug.WriteLine($"sw1 took {sw.ElapsedMilliseconds} msec");
+                    if (toBeExpanded == null || isExpanded)
+                    {
+                        _persistentData.ExpandedRootFolderPath = null;
+                        isShrinking = true;
+                    }
+                }).ConfigureAwait(false);
+                if (isShrinking) return;
 
-			//sw.Restart();
-			//sss = await StorageFolder.GetFolderFromPathAsync(folderWithChildren.FolderPath).AsTask().ConfigureAwait(false);
-			//var query = sss.CreateFolderQuery();
-			//var childrennn = await query.GetFoldersAsync().AsTask().ConfigureAwait(false);
+                //Stopwatch sw = new Stopwatch();
+                //sw.Start();
+                //var sss = await StorageFolder.GetFolderFromPathAsync(folderWithChildren.FolderPath).AsTask().ConfigureAwait(false);
+                //var childrenn = await sss.GetFoldersAsync().AsTask().ConfigureAwait(false);
+                //sw.Stop();
+                //Debug.WriteLine($"sw1 took {sw.ElapsedMilliseconds} msec");
 
-			//sw.Stop();
-			//Debug.WriteLine($"sw2 took {sw.ElapsedMilliseconds} msec");
+                //sw.Restart();
+                //sss = await StorageFolder.GetFolderFromPathAsync(folderWithChildren.FolderPath).AsTask().ConfigureAwait(false);
+                //var query = sss.CreateFolderQuery();
+                //var childrennn = await query.GetFoldersAsync().AsTask().ConfigureAwait(false);
 
-			//sw.Restart();
-			// LOLLO NOTE the StorageFolder methods are not faster
-			string[] paths = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
-			List<NameAndPath> children = new List<NameAndPath>();
-			//sw.Stop();
-			//Debug.WriteLine($"sw3 took {sw.ElapsedMilliseconds} msec");
+                //sw.Stop();
+                //Debug.WriteLine($"sw2 took {sw.ElapsedMilliseconds} msec");
 
-			await RunInUiThreadAsync(delegate
-			{
-				foreach (var path in paths)
-				{
-					children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
-				}
-				toBeExpanded.Children.AddRange(children);
-				toBeExpanded.IsExpanded = true;
-				_persistentData.ExpandedRootFolderPath = toBeExpanded.FolderPath;
+                //sw.Restart();
+                // LOLLO NOTE the StorageFolder methods are not faster
+                string[] paths = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
+                List<NameAndPath> children = new List<NameAndPath>();
+                //sw.Stop();
+                //Debug.WriteLine($"sw3 took {sw.ElapsedMilliseconds} msec");
 
-				IsLoadingChildren = false;
-			}).ConfigureAwait(false);
+                await RunInUiThreadAsync(delegate
+                {
+                    foreach (var path in paths)
+                    {
+                        children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
+                    }
+                    toBeExpanded.Children.AddRange(children);
+                    toBeExpanded.IsExpanded = true;
+                    _persistentData.ExpandedRootFolderPath = toBeExpanded.FolderPath;
+                }).ConfigureAwait(false);
+            }
+            finally
+            {
+                IsLoadingChildren = false;
+            }
 		}
 
 		public void RemoveRootFolder(string folderPath)

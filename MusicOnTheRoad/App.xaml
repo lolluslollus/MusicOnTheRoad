@@ -8,7 +8,15 @@
 	<Application.Resources>
 		<!-- Application-specific resources -->
 		<ResourceDictionary>
-			<conv:BoolToSymbol x:Key="BoolToSymbol"/>
+            <ResourceDictionary.MergedDictionaries>
+
+                <!-- 
+					Styles that define common aspects of the platform look and feel
+					Required by Visual Studio project and item templates
+				 -->
+                <ResourceDictionary Source="Styles/Styles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <conv:BoolToSymbol x:Key="BoolToSymbol"/>
 			<conv:BoolToVisible x:Key="BoolToVisible"/>
 		</ResourceDictionary>
 	</Application.Resources>

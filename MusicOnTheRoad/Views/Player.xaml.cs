@@ -59,12 +59,26 @@ namespace MusicOnTheRoad.Views
 		private void OnLoaded(object sender, RoutedEventArgs e)
 		{
 			_vm = new PlayerVM(mediaPlayerElement.MediaPlayer);
+            //_vm.PropertyChanged += OnVMPropertyChanged;
 			RaisePropertyChanged_UI(nameof(VM));
 		}
 
-		private void OnUnloaded(object sender, RoutedEventArgs e)
+        //private void OnVMPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        //{
+        //    if (e.PropertyName == nameof(VM.IsLoadingChildren)) {
+        //        if (VM.IsLoadingChildren) ShowLoadingOverlay.Begin();
+        //        else HideLoadingOverlay.Begin();
+        //    }
+        //}
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
 		{
-			_vm?.Dispose();
+            var vm = _vm;
+            if (vm != null)
+            {
+                //vm.PropertyChanged -= OnVMPropertyChanged;
+                vm.Dispose();
+            }
 			_vm = null;
 		}
 		#endregion lifecycle
