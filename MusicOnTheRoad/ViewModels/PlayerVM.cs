@@ -215,7 +215,7 @@ namespace MusicOnTheRoad.ViewModels
             _persistentData.AddRootFolderPath(folder.Path);
 
             if (_foldersWithChildren.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
-            _foldersWithChildren.Add(new FolderWithChildren(folder.Path));
+            _foldersWithChildren.Add(new FolderWithChildren(folder.Name, folder.Path));
         }
         public void UnpinRootFolders()
         {
@@ -227,11 +227,22 @@ namespace MusicOnTheRoad.ViewModels
             foreach (var item in _foldersWithChildren)
             {
                 item.Children.Clear();
-                item.IsExpanded = false;
+                if (item.ExpandedMode == ExpandedModes.Expanded) item.ExpandedMode= ExpandedModes.NotExpanded;
             }
         }
 
-        public async Task ToggleExpandRootFolderAsync(FolderWithChildren folderWithChildren)
+        public async Task OpenOrToggleExpandRootFolderAsync(FolderWithChildren folderWithChildren)
+        {
+            if (await IsFolderWithMusicAsync(folderWithChildren.FolderPath))
+            {
+                folderWithChildren.ExpandedMode = ExpandedModes.NotExpandable;
+                await SetSourceFolderAsync(new NameAndPath(folderWithChildren.FolderName, folderWithChildren.FolderPath)).ConfigureAwait(false);
+                return;
+            }
+            await ToggleExpandRootFolderAsync(folderWithChildren).ConfigureAwait(false);
+        }
+
+        private async Task ToggleExpandRootFolderAsync(FolderWithChildren folderWithChildren)
         {
             try
             {
@@ -277,13 +288,13 @@ namespace MusicOnTheRoad.ViewModels
 
                 foreach (var path in paths)
                 {
-                    children.Add(new NameAndPath() { Name = System.IO.Path.GetFileName(path), Path = path });
+                    children.Add(new NameAndPath(System.IO.Path.GetFileName(path), path));
                 }
 
                 await RunInUiThreadAsync(delegate
                 {
                     toBeExpanded.Children.AddRange(children);
-                    toBeExpanded.IsExpanded = true;
+                    toBeExpanded.ExpandedMode = ExpandedModes.Expanded;
                     _persistentData.ExpandedRootFolderPath = toBeExpanded.FolderPath;
                 }).ConfigureAwait(false);
             }
@@ -302,6 +313,21 @@ namespace MusicOnTheRoad.ViewModels
             _foldersWithChildren.Remove(toBeRemoved);
         }
         #endregion user actions
+
+        #region services
+        private Task<bool> IsFolderWithMusicAsync(string folderPath)
+        {
+            return Task.Run(delegate
+            {
+                if (string.IsNullOrWhiteSpace(folderPath)) return false;
+                foreach (var ext in ConstantData.Extensions)
+                {
+                    if (System.IO.Directory.EnumerateFiles(folderPath, $"*{ext}").Any()) return true;
+                }
+                return false;
+            });
+        }
+        #endregion services
 
         #region data event handlers
         private bool _isDataChangedHandlersActive = false;
@@ -442,17 +468,26 @@ namespace MusicOnTheRoad.ViewModels
         #endregion
     }
 
+    public enum ExpandedModes { NotExpanded, Expanded, NotExpandable }
     public class FolderWithChildren : ObservableData
     {
+        private string _folderName = null;
+        public string FolderName { get { return _folderName; } private set { _folderName = value; RaisePropertyChanged(); } }
         private string _folderPath = null;
-        public string FolderPath { get { return _folderPath; } set { _folderPath = value; RaisePropertyChanged(); } }
+        public string FolderPath { get { return _folderPath; } private set { _folderPath = value; RaisePropertyChanged(); } }
         private readonly SwitchableObservableCollection<NameAndPath> _children = new SwitchableObservableCollection<NameAndPath>();
         public SwitchableObservableCollection<NameAndPath> Children { get { return _children; } }
-        private bool _isExpanded = false;
-        public bool IsExpanded { get { return _isExpanded; } set { _isExpanded = value; RaisePropertyChanged(); } }
+        private ExpandedModes _isExpanded =  ExpandedModes.NotExpanded;
+        public ExpandedModes ExpandedMode { get { return _isExpanded; } set { _isExpanded = value; RaisePropertyChanged(); } }
 
         public FolderWithChildren(string folderPath)
         {
+            FolderName = System.IO.Path.GetFileName(folderPath);
+            FolderPath = folderPath;
+        }
+        public FolderWithChildren(string folderName, string folderPath)
+        {
+            FolderName = folderName;
             FolderPath = folderPath;
         }
     }
@@ -460,8 +495,14 @@ namespace MusicOnTheRoad.ViewModels
     public class NameAndPath : ObservableData
     {
         private string _name = null;
-        public string Name { get { return _name; } set { _name = value; RaisePropertyChanged(); } }
+        public string Name { get { return _name; } private set { _name = value; RaisePropertyChanged(); } }
         private string _path = null;
-        public string Path { get { return _path; } set { _path = value; RaisePropertyChanged(); } }
+        public string Path { get { return _path; } private set { _path = value; RaisePropertyChanged(); } }
+
+        public NameAndPath(string name, string path)
+        {
+            Name = name;
+            Path = path;
+        }
     }
 }

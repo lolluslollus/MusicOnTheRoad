@@ -85,7 +85,7 @@ namespace MusicOnTheRoad.Views
 
         private async void OnRootFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
 		{
-			await _vm.ToggleExpandRootFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren).ConfigureAwait(false);
+			await _vm.OpenOrToggleExpandRootFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren).ConfigureAwait(false);
 		}
 
 		private async void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)

@@ -118,7 +118,7 @@
                                     <ColumnDefinition Width="10*"/>
                                     <ColumnDefinition Width="1*"/>
                                 </Grid.ColumnDefinitions>
-                                <SymbolIcon Grid.Column="0" Symbol="{Binding IsExpanded, Converter={StaticResource BoolToSymbol}}"/>
+                                <SymbolIcon Grid.Column="0" Symbol="{Binding ExpandedMode, Converter={StaticResource ExpandedModeToSymbol}}"/>
                                 <TextBlock Grid.Column="1"
 									Text="{Binding FolderPath}"
 									TextWrapping="Wrap"
