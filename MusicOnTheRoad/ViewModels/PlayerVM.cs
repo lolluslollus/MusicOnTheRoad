@@ -122,21 +122,21 @@ namespace MusicOnTheRoad.ViewModels
             var file = await Utilz.Pickers.PickOpenFileAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
             if (file == null) return false;
 
+            List<string> songTitles = new List<string>();
+            var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
+            var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
+
+            var displayProperties = mediaPlaybackItem.GetDisplayProperties();
+            displayProperties.Type = MediaPlaybackType.Music;
+            if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.Title)) displayProperties.MusicProperties.Title = file.Name;
+            displayProperties.MusicProperties.TrackNumber = 1;
+            displayProperties.MusicProperties.AlbumTrackCount = 1;
+            mediaPlaybackItem.ApplyDisplayProperties(displayProperties);
+
+            mediaPlaybackList.Items.Add(mediaPlaybackItem);
+
             try
             {
-                List<string> songTitles = new List<string>();
-                var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
-                var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
-
-                var displayProperties = mediaPlaybackItem.GetDisplayProperties();
-                displayProperties.Type = MediaPlaybackType.Music;
-                if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.Title)) displayProperties.MusicProperties.Title = file.Name;
-                displayProperties.MusicProperties.TrackNumber = 1;
-                displayProperties.MusicProperties.AlbumTrackCount = 1;
-                mediaPlaybackItem.ApplyDisplayProperties(displayProperties);
-
-                mediaPlaybackList.Items.Add(mediaPlaybackItem);
-
                 await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
 
                 RemoveMediaHandlers();
