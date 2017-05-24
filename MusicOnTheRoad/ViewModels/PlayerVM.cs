@@ -489,7 +489,7 @@ namespace MusicOnTheRoad.ViewModels
         #endregion
     }
 
-    public enum ExpandedModes { NotExpanded, Expanded, NotExpandable }
+    public enum ExpandedModes { DontKnow, NotExpanded, Expanded, NotExpandable }
     public class FolderWithChildren : ObservableData
     {
         private string _folderName = null;
@@ -498,7 +498,7 @@ namespace MusicOnTheRoad.ViewModels
         public string FolderPath { get { return _folderPath; } private set { _folderPath = value; RaisePropertyChanged(); } }
         private readonly SwitchableObservableCollection<NameAndPath> _children = new SwitchableObservableCollection<NameAndPath>();
         public SwitchableObservableCollection<NameAndPath> Children { get { return _children; } }
-        private ExpandedModes _isExpanded = ExpandedModes.NotExpanded;
+        private ExpandedModes _isExpanded = ExpandedModes.DontKnow;
         public ExpandedModes ExpandedMode { get { return _isExpanded; } set { _isExpanded = value; RaisePropertyChanged(); } }
 
         public FolderWithChildren(string folderPath)

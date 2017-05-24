@@ -15,7 +15,8 @@ namespace MusicOnTheRoad.Converters
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            if (value == null || !(value is ExpandedModes) || (ExpandedModes)value == ExpandedModes.NotExpanded) return Symbol.Forward;
+            if (value == null || !(value is ExpandedModes) || (ExpandedModes)value == ExpandedModes.DontKnow) return Symbol.View;
+            if ((ExpandedModes)value == ExpandedModes.NotExpanded) return Symbol.Forward;
             if ((ExpandedModes)value == ExpandedModes.NotExpandable) return Symbol.Play;
             return Symbol.Back;
         }
