@@ -23,8 +23,8 @@ namespace MusicOnTheRoad.Converters
         public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
             throw new Exception("this is a one-way binding, it should never come here");
-            if (value == null || !(value is int)) return 0;
-            return Math.Max((int)value, 0);
+            //if (value == null || !(value is int)) return 0;
+            //return Math.Max((int)value, 0);
         }
     }
     public class BoolToVisible : IValueConverter

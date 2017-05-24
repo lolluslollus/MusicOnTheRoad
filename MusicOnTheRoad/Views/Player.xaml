@@ -80,7 +80,7 @@
                     <TextBlock Grid.Column="1" Text="Pin a folder" Margin="{StaticResource MarginSmall}"/>
                 </Grid>
             </Button>
-            <Button Click="{x:Bind VM.UnpinRootFolders}" Style="{StaticResource Button0}">
+            <Button Click="{x:Bind VM.UnpinRootFoldersAsync}" Style="{StaticResource Button0}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*"/>

@@ -12,7 +12,6 @@ using Windows.Media;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Storage;
-using Windows.Storage.AccessCache;
 using Windows.Storage.Pickers;
 
 // LOLLO TODO see if you can show the waiting ring while the listview populates. This is annoying.
@@ -21,6 +20,7 @@ namespace MusicOnTheRoad.ViewModels
 {
     public sealed class PlayerVM : ObservableData, IDisposable
     {
+        #region properties
         private readonly PersistentData _persistentData = null;
         public PersistentData PersistentData { get { return _persistentData; } }
         private readonly MediaPlayer _mediaPlayer = null;
@@ -31,11 +31,12 @@ namespace MusicOnTheRoad.ViewModels
         private readonly SwitchableObservableCollection<FolderWithChildren> _foldersWithChildren = new SwitchableObservableCollection<FolderWithChildren>();
         public SwitchableObservableCollection<FolderWithChildren> FoldersWithChildren { get { return _foldersWithChildren; } }
         private string _lastMessage = null;
-        public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged_UI(); } }
+        public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged(); } }
         private string _songTitle = null;
-        public string SongTitle { get { return _songTitle; } private set { _songTitle = value; RaisePropertyChanged_UI(); } }
+        public string SongTitle { get { return _songTitle; } private set { _songTitle = value; RaisePropertyChanged(); } }
         private bool _isLoadingChildren = false;
-        public bool IsLoadingChildren { get { return _isLoadingChildren; } private set { if (_isLoadingChildren != value) { _isLoadingChildren = value; RaisePropertyChanged_UI(); } } }
+        public bool IsLoadingChildren { get { return _isLoadingChildren; } private set { if (_isLoadingChildren != value) { _isLoadingChildren = value; RaisePropertyChanged(); } } }
+        # endregion properties
 
         public PlayerVM(MediaPlayer mediaPlayer)
         {
@@ -44,10 +45,10 @@ namespace MusicOnTheRoad.ViewModels
             AddMediaHandlers();
 
             _persistentData = PersistentData.GetInstance();
+            AddDataChangedHandlers();
             RaisePropertyChanged(nameof(PersistentData));
 
-            AddDataChangedHandlers();
-            UpdateLastMessage();
+            Task upd0 = UpdateLastMessageAsync();
             Task upd1 = UpdateFoldersWithChildrenAsync();
         }
 
@@ -68,24 +69,33 @@ namespace MusicOnTheRoad.ViewModels
             if (expandedRootFolder == null) return;
             await ToggleExpandRootFolderAsync(expandedRootFolder).ConfigureAwait(false);
         }
-        private void UpdateLastMessage()
+        private Task UpdateLastMessageAsync()
         {
-            LastMessage = _persistentData.LastMessage;
-        }
-        private void UpdateLastMessage(string message)
-        {
-            LastMessage = message;
-        }
-
-        private void UpdateSongTitle(MusicDisplayProperties displayProperties)
-        {
-            if (displayProperties == null)
+            return RunInUiThreadAsync(delegate
             {
-                SongTitle = "Error displaying the song title";
-                return;
-            }
+                LastMessage = _persistentData.LastMessage;
+            });
+        }
+        private Task UpdateLastMessageAsync(string message)
+        {
+            return RunInUiThreadAsync(delegate
+            {
+                LastMessage = message;
+            });
+        }
 
-            SongTitle = $"{displayProperties.Title} - {displayProperties.TrackNumber} of {displayProperties.AlbumTrackCount}";
+        private Task UpdateSongTitleAsync(MusicDisplayProperties displayProperties)
+        {
+            return RunInUiThreadAsync(delegate
+            {
+                if (displayProperties == null)
+                {
+                    SongTitle = "Error displaying the song title";
+                    return;
+                }
+
+                SongTitle = $"{displayProperties.Title} - {displayProperties.TrackNumber} of {displayProperties.AlbumTrackCount}";
+            });
         }
         private void UpdateAudioQuality(AudioTrack audioTrack)
         {
@@ -97,7 +107,7 @@ namespace MusicOnTheRoad.ViewModels
                 if (supportInfo == null || encodingProperties == null) return;
 
                 string audioQuality = $"{encodingProperties.ChannelCount} channels, {encodingProperties.BitsPerSample} bit, {encodingProperties.SampleRate} kHz, {encodingProperties.Subtype}, {encodingProperties.Bitrate} bits/sec, {supportInfo.DecoderStatus}";
-                UpdateLastMessage(audioQuality);
+                UpdateLastMessageAsync(audioQuality);
             }
             catch (Exception ex)
             {
@@ -212,22 +222,28 @@ namespace MusicOnTheRoad.ViewModels
             var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
             if (folder == null) return;
 
-            _persistentData.AddRootFolderPath(folder.Path);
+            await RunInUiThreadAsync(delegate
+            {
+                _persistentData.AddRootFolderPath(folder.Path);
 
-            if (_foldersWithChildren.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
-            _foldersWithChildren.Add(new FolderWithChildren(folder.Name, folder.Path));
+                if (_foldersWithChildren.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
+                _foldersWithChildren.Add(new FolderWithChildren(folder.Name, folder.Path));
+            }).ConfigureAwait(false);
         }
-        public void UnpinRootFolders()
+        public Task UnpinRootFoldersAsync()
         {
-            _persistentData.ClearRootFolders();
-            _foldersWithChildren.Clear();
+            return RunInUiThreadAsync(delegate
+            {
+                _persistentData.ClearRootFolders();
+                _foldersWithChildren.Clear();
+            });
         }
-        public void CollapseRootFolders()
+        private void CollapseRootFolders_UI()
         {
             foreach (var item in _foldersWithChildren)
             {
                 item.Children.Clear();
-                if (item.ExpandedMode == ExpandedModes.Expanded) item.ExpandedMode= ExpandedModes.NotExpanded;
+                if (item.ExpandedMode == ExpandedModes.Expanded) item.ExpandedMode = ExpandedModes.NotExpanded;
             }
         }
 
@@ -246,15 +262,14 @@ namespace MusicOnTheRoad.ViewModels
         {
             try
             {
-                IsLoadingChildren = true;
-
                 FolderWithChildren toBeExpanded = null;
                 bool isShrinking = false;
                 await RunInUiThreadAsync(delegate
                 {
+                    IsLoadingChildren = true;
                     toBeExpanded = _foldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
                     bool isExpanded = toBeExpanded?.Children?.Count > 0;
-                    CollapseRootFolders();
+                    CollapseRootFolders_UI();
 
                     if (toBeExpanded == null || isExpanded)
                     {
@@ -300,17 +315,23 @@ namespace MusicOnTheRoad.ViewModels
             }
             finally
             {
-                IsLoadingChildren = false;
+                await RunInUiThreadAsync(delegate
+                {
+                    IsLoadingChildren = false;
+                }).ConfigureAwait(false);
             }
         }
 
-        public void RemoveRootFolder(string folderPath)
+        public Task RemoveRootFolderAsync(string folderPath)
         {
-            _persistentData.RemoveRootFolderPath(folderPath);
+            return RunInUiThreadAsync(delegate
+            {
+                _persistentData.RemoveRootFolderPath(folderPath);
 
-            var toBeRemoved = _foldersWithChildren.FirstOrDefault((folderWithChildren) => { return folderWithChildren.FolderPath == folderPath; });
-            if (toBeRemoved == null) return;
-            _foldersWithChildren.Remove(toBeRemoved);
+                var toBeRemoved = _foldersWithChildren.FirstOrDefault((folderWithChildren) => { return folderWithChildren.FolderPath == folderPath; });
+                if (toBeRemoved == null) return;
+                _foldersWithChildren.Remove(toBeRemoved);
+            });
         }
         #endregion user actions
 
@@ -355,7 +376,7 @@ namespace MusicOnTheRoad.ViewModels
 
         private void OnSuspensionManager_Loaded(object sender, bool e)
         {
-            UpdateLastMessage();
+            Task upd0 = UpdateLastMessageAsync();
             Task upd1 = UpdateFoldersWithChildrenAsync();
         }
 
@@ -363,7 +384,7 @@ namespace MusicOnTheRoad.ViewModels
         {
             if (e.PropertyName == nameof(PersistentData.LastMessage))
             {
-                UpdateLastMessage();
+                UpdateLastMessageAsync();
             }
         }
         #endregion data event handlers
@@ -408,13 +429,13 @@ namespace MusicOnTheRoad.ViewModels
         private void OnMediaPlaybackList_ItemFailed(MediaPlaybackList sender, MediaPlaybackItemFailedEventArgs args)
         {
             var message = args?.Error?.ExtendedError?.Message;
-            UpdateLastMessage(message == null ? "media error" : message);
+            UpdateLastMessageAsync(message == null ? "media error" : message);
         }
 
         private void OnMediaPlaybackList_CurrentItemChanged(MediaPlaybackList sender, CurrentMediaPlaybackItemChangedEventArgs args)
         {
             var currentAudioTrack = args?.NewItem?.AudioTracks?[0];
-            UpdateSongTitle(currentAudioTrack?.PlaybackItem?.GetDisplayProperties()?.MusicProperties);
+            UpdateSongTitleAsync(currentAudioTrack?.PlaybackItem?.GetDisplayProperties()?.MusicProperties);
         }
         #endregion media event handlers
 
@@ -477,7 +498,7 @@ namespace MusicOnTheRoad.ViewModels
         public string FolderPath { get { return _folderPath; } private set { _folderPath = value; RaisePropertyChanged(); } }
         private readonly SwitchableObservableCollection<NameAndPath> _children = new SwitchableObservableCollection<NameAndPath>();
         public SwitchableObservableCollection<NameAndPath> Children { get { return _children; } }
-        private ExpandedModes _isExpanded =  ExpandedModes.NotExpanded;
+        private ExpandedModes _isExpanded = ExpandedModes.NotExpanded;
         public ExpandedModes ExpandedMode { get { return _isExpanded; } set { _isExpanded = value; RaisePropertyChanged(); } }
 
         public FolderWithChildren(string folderPath)

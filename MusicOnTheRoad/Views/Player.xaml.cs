@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
 using Utilz.Controlz;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
@@ -19,7 +20,7 @@ using Windows.UI.Xaml.Navigation;
 
 namespace MusicOnTheRoad.Views
 {
-	public sealed partial class Player : ObservableControl
+	public sealed partial class Player : ObservableControl, IDisposable
 	{
 		private PlayerVM _vm = null;
 		public PlayerVM VM { get { return _vm; } }
@@ -73,30 +74,66 @@ namespace MusicOnTheRoad.Views
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
 		{
-            var vm = _vm;
-            if (vm != null)
-            {
-                //vm.PropertyChanged -= OnVMPropertyChanged;
-                vm.Dispose();
-            }
-			_vm = null;
+            Dispose(true);
 		}
         #endregion lifecycle
 
-        private async void OnRootFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
+        private void OnRootFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
 		{
-			await _vm.OpenOrToggleExpandRootFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren).ConfigureAwait(false);
+			Task task = _vm.OpenOrToggleExpandRootFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren);
 		}
 
-		private async void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)
+		private void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)
 		{
-			await _vm.SetSourceFolderAsync((sender as FrameworkElement).DataContext as NameAndPath).ConfigureAwait(false);
+            Task task = _vm.SetSourceFolderAsync((sender as FrameworkElement).DataContext as NameAndPath);
 		}
 
 		private void OnRemoveRootFolderIcon_Tapped(object sender, TappedRoutedEventArgs e)
 		{
 			e.Handled = true;
-			_vm.RemoveRootFolder(((sender as FrameworkElement).DataContext as FolderWithChildren).FolderPath);
+            Task task = _vm.RemoveRootFolderAsync(((sender as FrameworkElement).DataContext as FolderWithChildren).FolderPath);
 		}
-	}
+
+        #region IDisposable Support
+        private bool isDisposed = false; // To detect redundant calls
+
+        void Dispose(bool isDisposing)
+        {
+            if (!isDisposed)
+            {
+                if (isDisposing)
+                {
+                    // TODO: dispose managed state (managed objects).
+                    var vm = _vm;
+                    if (vm != null)
+                    {
+                        //vm.PropertyChanged -= OnVMPropertyChanged;
+                        vm.Dispose();
+                    }
+                    _vm = null;
+                }
+
+                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+                // TODO: set large fields to null.
+
+                isDisposed = true;
+            }
+        }
+
+        // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+        // ~Player() {
+        //   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+        //   Dispose(false);
+        // }
+
+        // This code added to correctly implement the disposable pattern.
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+            Dispose(true);
+            // TODO: uncomment the following line if the finalizer is overridden above.
+            // GC.SuppressFinalize(this);
+        }
+        #endregion
+    }
 }
