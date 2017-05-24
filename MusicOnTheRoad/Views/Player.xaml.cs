@@ -20,79 +20,79 @@ using Windows.UI.Xaml.Navigation;
 
 namespace MusicOnTheRoad.Views
 {
-	public sealed partial class Player : ObservableControl, IDisposable
-	{
-		private PlayerVM _vm = null;
-		public PlayerVM VM { get { return _vm; } }
+    public sealed partial class Player : ObservableControl, IDisposable
+    {
+        private PlayerVM _vm = null;
+        public PlayerVM VM { get { return _vm; } }
 
-		#region lifecycle
-		public Player()
-		{
-			this.InitializeComponent();
-			mediaPlayerElement.TransportControls = new MediaTransportControls()
-			{
-				IsCompact = false,
-				IsFastForwardButtonVisible = false,
-				IsFastForwardEnabled = false,
-				IsFastRewindButtonVisible = false,
-				IsFastRewindEnabled = false,
-				IsFullWindowButtonVisible = false,
-				IsFullWindowEnabled = false,
-				IsNextTrackButtonVisible = true,
-				IsPlaybackRateButtonVisible = false,
-				IsPlaybackRateEnabled = false,
-				IsPreviousTrackButtonVisible = true,
-				IsSeekBarVisible = true,
-				IsSeekEnabled = true,
-				IsSkipBackwardButtonVisible = false,
-				IsSkipBackwardEnabled = false,
-				IsSkipForwardButtonVisible = false,
-				IsSkipForwardEnabled = false,
-				IsStopButtonVisible = true,
-				IsStopEnabled = true,
-				IsVolumeButtonVisible = false,
-				IsVolumeEnabled = false,
-				IsZoomButtonVisible = false,
-				IsZoomEnabled = false
-			};
-		}
+        #region lifecycle
+        public Player()
+        {
+            this.InitializeComponent();
+            mediaPlayerElement.TransportControls = new MediaTransportControls()
+            {
+                IsCompact = false,
+                IsFastForwardButtonVisible = false,
+                IsFastForwardEnabled = false,
+                IsFastRewindButtonVisible = false,
+                IsFastRewindEnabled = false,
+                IsFullWindowButtonVisible = false,
+                IsFullWindowEnabled = false,
+                IsNextTrackButtonVisible = true,
+                IsPlaybackRateButtonVisible = false,
+                IsPlaybackRateEnabled = false,
+                IsPreviousTrackButtonVisible = true,
+                IsSeekBarVisible = true,
+                IsSeekEnabled = true,
+                IsSkipBackwardButtonVisible = false,
+                IsSkipBackwardEnabled = false,
+                IsSkipForwardButtonVisible = false,
+                IsSkipForwardEnabled = false,
+                IsStopButtonVisible = true,
+                IsStopEnabled = true,
+                IsVolumeButtonVisible = false,
+                IsVolumeEnabled = false,
+                IsZoomButtonVisible = false,
+                IsZoomEnabled = false
+            };
+        }
 
-		private void OnLoaded(object sender, RoutedEventArgs e)
-		{
-			_vm = new PlayerVM(mediaPlayerElement.MediaPlayer);
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            _vm = new PlayerVM(mediaPlayerElement.MediaPlayer);
             //_vm.PropertyChanged += OnVMPropertyChanged;
-			RaisePropertyChanged_UI(nameof(VM));
-		}
+            RaisePropertyChanged_UI(nameof(VM));
+        }
 
         //private void OnVMPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         //{
-        //    if (e.PropertyName == nameof(VM.IsLoadingChildren)) {
-        //        if (VM.IsLoadingChildren) ShowLoadingOverlay.Begin();
+        //    if (e.PropertyName == nameof(VM.IsBusy)) {
+        //        if (VM.IsBusy) ShowLoadingOverlay.Begin();
         //        else HideLoadingOverlay.Begin();
         //    }
         //}
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
-		{
+        {
             Dispose(true);
-		}
+        }
         #endregion lifecycle
 
         private void OnPinnedFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
-		{
-			Task task = _vm.OpenOrToggleExpandPinnedFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren);
-		}
+        {
+            Task task = _vm.OpenOrToggleExpandPinnedFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren);
+        }
 
-		private void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)
-		{
+        private void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)
+        {
             Task task = _vm.SetSourceFolderAsync((sender as FrameworkElement).DataContext as NameAndPath);
-		}
+        }
 
-		private void OnRemovePinnedFolderIcon_Tapped(object sender, TappedRoutedEventArgs e)
-		{
-			e.Handled = true;
+        private void OnRemovePinnedFolderIcon_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            e.Handled = true;
             Task task = _vm.RemovePinnedFolderAsync(((sender as FrameworkElement).DataContext as FolderWithChildren).FolderPath);
-		}
+        }
 
         #region IDisposable Support
         private bool isDisposed = false; // To detect redundant calls

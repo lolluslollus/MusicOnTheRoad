@@ -34,8 +34,8 @@ namespace MusicOnTheRoad.ViewModels
         public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged(); } }
         private string _songTitle = null;
         public string SongTitle { get { return _songTitle; } private set { _songTitle = value; RaisePropertyChanged(); } }
-        private bool _isLoadingChildren = false;
-        public bool IsLoadingChildren { get { return _isLoadingChildren; } private set { if (_isLoadingChildren != value) { _isLoadingChildren = value; RaisePropertyChanged(); } } }
+        private bool _isBusy = false;
+        public bool IsBusy { get { return _isBusy; } private set { if (_isBusy != value) { _isBusy = value; RaisePropertyChanged_UI(); } } }
         # endregion properties
 
         public PlayerVM(MediaPlayer mediaPlayer)
@@ -176,47 +176,55 @@ namespace MusicOnTheRoad.ViewModels
         {
             if (folder == null) return;
 
-            var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
-            bool isFolderWithMusic = await IsFolderWithMusicAsync(folder.Path).ConfigureAwait(false);
-
-            Debug.WriteLine("CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess = " + Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess);
-            if (isFolderWithMusic)
-            {
-                await SetSourceFolderShallowAsync(folder, mediaPlaybackList, true).ConfigureAwait(false);
-            }
-            else
-            {
-                var childFolders = await folder.GetFoldersAsync().AsTask().ConfigureAwait(false);
-                foreach (var childFolder in childFolders)
-                {
-                    if (mediaPlaybackList.Items.Count > MaxPlaylistItems) break;
-                    await SetSourceFolderShallowAsync(childFolder, mediaPlaybackList, false).ConfigureAwait(false);
-                }
-                Debug.WriteLine("mediaPlaybackList has " + mediaPlaybackList.Items.Count + " items");
-            }
-
-            if (mediaPlaybackList.Items.Count < 1)
-            {
-                Task upd = UpdateLastMessageAsync("No music found");
-                return;
-            }
-            else if (mediaPlaybackList.Items.Count > MaxPlaylistItems)
-            {
-                Task upd = UpdateLastMessageAsync($"Only the first {mediaPlaybackList.Items.Count} songs will be played");
-            }
-
             try
             {
-                await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
+                IsBusy = true;
+                var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
+                bool isFolderWithMusic = await IsFolderWithMusicAsync(folder.Path).ConfigureAwait(false);
 
-                RemoveMediaHandlers();
-                _source = mediaPlaybackList;
-                AddMediaHandlers();
-                RaisePropertyChanged_UI(nameof(Source));
+                Debug.WriteLine("CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess = " + Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess);
+                if (isFolderWithMusic)
+                {
+                    await SetSourceFolderShallowAsync(folder, mediaPlaybackList, true).ConfigureAwait(false);
+                }
+                else
+                {
+                    var childFolders = await folder.GetFoldersAsync().AsTask().ConfigureAwait(false);
+                    foreach (var childFolder in childFolders)
+                    {
+                        if (mediaPlaybackList.Items.Count > MaxPlaylistItems) break;
+                        await SetSourceFolderShallowAsync(childFolder, mediaPlaybackList, false).ConfigureAwait(false);
+                    }
+                    Debug.WriteLine("mediaPlaybackList has " + mediaPlaybackList.Items.Count + " items");
+                }
+
+                if (mediaPlaybackList.Items.Count < 1)
+                {
+                    Task upd = UpdateLastMessageAsync("No music found");
+                    return;
+                }
+                else if (mediaPlaybackList.Items.Count > MaxPlaylistItems)
+                {
+                    Task upd = UpdateLastMessageAsync($"Only the first {mediaPlaybackList.Items.Count} songs will be played");
+                }
+
+                try
+                {
+                    await _mediaSourceSemaphore.WaitAsync().ConfigureAwait(false);
+
+                    RemoveMediaHandlers();
+                    _source = mediaPlaybackList;
+                    AddMediaHandlers();
+                    RaisePropertyChanged_UI(nameof(Source));
+                }
+                finally
+                {
+                    SemaphoreSlimSafeRelease.TryRelease(_mediaSourceSemaphore);
+                }
             }
             finally
             {
-                SemaphoreSlimSafeRelease.TryRelease(_mediaSourceSemaphore);
+                IsBusy = false;
             }
         }
 
@@ -304,7 +312,7 @@ namespace MusicOnTheRoad.ViewModels
                 bool isShrinking = false;
                 await RunInUiThreadAsync(delegate
                 {
-                    IsLoadingChildren = true;
+                    IsBusy = true;
                     toBeExpanded = _pinnedFolders.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
                     bool isExpanded = toBeExpanded?.Children?.Count > 0;
                     CollapsePinnedFolders_UI();
@@ -359,10 +367,7 @@ namespace MusicOnTheRoad.ViewModels
             }
             finally
             {
-                await RunInUiThreadAsync(delegate
-                {
-                    IsLoadingChildren = false;
-                }).ConfigureAwait(false);
+                IsBusy = false;
             }
         }
 
