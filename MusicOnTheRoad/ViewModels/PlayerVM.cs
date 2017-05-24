@@ -19,6 +19,8 @@ namespace MusicOnTheRoad.ViewModels
     public sealed class PlayerVM : ObservableData, IDisposable
     {
         #region properties
+        public const int MaxPlaylistItems = 200;
+
         private readonly PersistentData _persistentData = null;
         public PersistentData PersistentData { get { return _persistentData; } }
         private readonly MediaPlayer _mediaPlayer = null;
@@ -187,12 +189,21 @@ namespace MusicOnTheRoad.ViewModels
                 var childFolders = await folder.GetFoldersAsync().AsTask().ConfigureAwait(false);
                 foreach (var childFolder in childFolders)
                 {
+                    if (mediaPlaybackList.Items.Count > MaxPlaylistItems) break;
                     await SetSourceFolderShallowAsync(childFolder, mediaPlaybackList, false).ConfigureAwait(false);
                 }
                 Debug.WriteLine("mediaPlaybackList has " + mediaPlaybackList.Items.Count + " items");
             }
 
-            if (mediaPlaybackList.Items.Count < 1) return;
+            if (mediaPlaybackList.Items.Count < 1)
+            {
+                Task upd = UpdateLastMessageAsync("No music found");
+                return;
+            }
+            else if (mediaPlaybackList.Items.Count > MaxPlaylistItems)
+            {
+                Task upd = UpdateLastMessageAsync($"Only the first {mediaPlaybackList.Items.Count} songs will be played");
+            }
 
             try
             {
