@@ -92,7 +92,14 @@ namespace MusicOnTheRoad.ViewModels
                     return;
                 }
 
-                SongTitle = $"{displayProperties.Title} - {displayProperties.TrackNumber} of {displayProperties.AlbumTrackCount}";
+                if (displayProperties.TrackNumber > 0 && displayProperties.AlbumTrackCount > 0)
+                {
+                    SongTitle = $"{displayProperties.Title} - {displayProperties.TrackNumber} of {displayProperties.AlbumTrackCount}";
+                }
+                else
+                {
+                    SongTitle = $"{displayProperties.Title}";
+                }
             });
         }
         private void UpdateAudioQuality(AudioTrack audioTrack)
@@ -115,10 +122,10 @@ namespace MusicOnTheRoad.ViewModels
         #endregion updaters
 
         #region user actions
-        public async Task<bool> PickSourceFileAsync()
+        public async Task PickSourceFileAsync()
         {
             var file = await Utilz.Pickers.PickOpenFileAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
-            if (file == null) return false;
+            if (file == null) return;
 
             List<string> songTitles = new List<string>();
             var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
@@ -140,63 +147,52 @@ namespace MusicOnTheRoad.ViewModels
                 RemoveMediaHandlers();
                 _source = mediaPlaybackList;
                 AddMediaHandlers();
+                RaisePropertyChanged_UI(nameof(Source));
             }
             finally
             {
                 SemaphoreSlimSafeRelease.TryRelease(_mediaSourceSemaphore);
             }
-
-            RaisePropertyChanged_UI(nameof(Source));
-            return true;
         }
-        public async Task<bool> PickSourceFolderAsync()
+        public async Task PickSourceFolderAsync()
         {
-            var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
-            if (folder == null) return false;
+            var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary).ConfigureAwait(false);
+            if (folder == null) return;
 
-            bool result = await SetSourceFolderAsync(folder);
-
-            return result;
+            await SetSourceFolderAsync(folder).ConfigureAwait(false);
         }
-        public async Task<bool> SetSourceFolderAsync(NameAndPath nameAndPath)
+        public async Task SetSourceFolderAsync(NameAndPath nameAndPath)
         {
-            if (nameAndPath == null || nameAndPath.Path == null) return false;
+            if (nameAndPath == null || nameAndPath.Path == null) return;
 
-            var folder = await StorageFolder.GetFolderFromPathAsync(nameAndPath.Path);
-            if (folder == null) return false;
+            var folder = await StorageFolder.GetFolderFromPathAsync(nameAndPath.Path).AsTask().ConfigureAwait(false);
+            if (folder == null) return;
 
-            bool result = await SetSourceFolderAsync(folder);
-
-            return result;
+            await SetSourceFolderAsync(folder).ConfigureAwait(false);
         }
-        private async Task<bool> SetSourceFolderAsync(StorageFolder folder)
+        private async Task SetSourceFolderAsync(StorageFolder folder)
         {
-            if (folder == null) return false;
+            if (folder == null) return;
 
-            var files = await folder.GetFilesAsync();
+            var mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
+            bool isFolderWithMusic = await IsFolderWithMusicAsync(folder.Path).ConfigureAwait(false);
 
-            MediaPlaybackList mediaPlaybackList = null;
-            List<string> songTitles = new List<string>();
-            var musicFiles = files.Where((fi) => { return ConstantData.Extensions.Any((ext) => { return ext == fi.FileType; }); });
-            uint trackCount = 0;
-            uint albumTrackCount = musicFiles != null ? Convert.ToUInt32(musicFiles.Count()) : 0;
-            foreach (var file in musicFiles)
+            Debug.WriteLine("CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess = " + Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess);
+            if (isFolderWithMusic)
             {
-                if (mediaPlaybackList == null) mediaPlaybackList = new MediaPlaybackList() { AutoRepeatEnabled = false, MaxPlayedItemsToKeepOpen = 1 };
-                var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
-
-                var displayProperties = mediaPlaybackItem.GetDisplayProperties();
-                displayProperties.Type = MediaPlaybackType.Music;
-                if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.AlbumTitle)) displayProperties.MusicProperties.AlbumTitle = folder.Name;
-                if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.Title)) displayProperties.MusicProperties.Title = file.Name;
-                trackCount++;
-                displayProperties.MusicProperties.TrackNumber = trackCount;
-                displayProperties.MusicProperties.AlbumTrackCount = albumTrackCount;
-                mediaPlaybackItem.ApplyDisplayProperties(displayProperties);
-
-                mediaPlaybackList.Items.Add(mediaPlaybackItem);
-                songTitles.Add(file.Name);
+                await SetSourceFolderShallowAsync(folder, mediaPlaybackList, true).ConfigureAwait(false);
             }
+            else
+            {
+                var childFolders = await folder.GetFoldersAsync().AsTask().ConfigureAwait(false);
+                foreach (var childFolder in childFolders)
+                {
+                    await SetSourceFolderShallowAsync(childFolder, mediaPlaybackList, false).ConfigureAwait(false);
+                }
+                Debug.WriteLine("mediaPlaybackList has " + mediaPlaybackList.Items.Count + " items");
+            }
+
+            if (mediaPlaybackList.Items.Count < 1) return;
 
             try
             {
@@ -205,14 +201,47 @@ namespace MusicOnTheRoad.ViewModels
                 RemoveMediaHandlers();
                 _source = mediaPlaybackList;
                 AddMediaHandlers();
+                RaisePropertyChanged_UI(nameof(Source));
             }
             finally
             {
                 SemaphoreSlimSafeRelease.TryRelease(_mediaSourceSemaphore);
             }
+        }
 
-            RaisePropertyChanged_UI(nameof(Source));
-            return true;
+        private async Task SetSourceFolderShallowAsync(StorageFolder folder, MediaPlaybackList mediaPlaybackList, bool isTrackCountEnabled)
+        {
+            if (folder == null || mediaPlaybackList == null) return;
+
+            var files = await folder.GetFilesAsync();
+
+            var musicFiles = files.Where((fi) => { return ConstantData.Extensions.Any((ext) => { return ext == fi.FileType; }); });
+            uint trackCount = 0;
+            uint albumTrackCount = musicFiles != null ? Convert.ToUInt32(musicFiles.Count()) : 0;
+            foreach (var file in musicFiles)
+            {
+                var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
+
+                var displayProperties = mediaPlaybackItem.GetDisplayProperties();
+                displayProperties.Type = MediaPlaybackType.Music;
+                if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.AlbumTitle)) displayProperties.MusicProperties.AlbumTitle = folder.Name;
+                if (String.IsNullOrWhiteSpace(displayProperties.MusicProperties.Title)) displayProperties.MusicProperties.Title = file.Name;
+                trackCount++;
+                if (isTrackCountEnabled)
+                {
+                    displayProperties.MusicProperties.TrackNumber = trackCount;
+                    displayProperties.MusicProperties.AlbumTrackCount = albumTrackCount;
+                }
+                else
+                {
+                    displayProperties.MusicProperties.TrackNumber = 0;
+                    displayProperties.MusicProperties.AlbumTrackCount = 0;
+                }
+
+                mediaPlaybackItem.ApplyDisplayProperties(displayProperties);
+
+                mediaPlaybackList.Items.Add(mediaPlaybackItem);
+            }
         }
 
         public async Task PinFolderAsync()
