@@ -14,8 +14,6 @@ using Windows.Media.Playback;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 
-// LOLLO TODO see if you can show the waiting ring while the listview populates. This is annoying.
-
 namespace MusicOnTheRoad.ViewModels
 {
     public sealed class PlayerVM : ObservableData, IDisposable
@@ -296,15 +294,21 @@ namespace MusicOnTheRoad.ViewModels
 
                 //sw.Restart();
                 // LOLLO NOTE the StorageFolder methods are not faster
-                string[] paths = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
-                List<NameAndPath> children = new List<NameAndPath>();
-                //sw.Stop();
-                //Debug.WriteLine($"sw3 took {sw.ElapsedMilliseconds} msec");
 
-                foreach (var path in paths)
+                List<NameAndPath> children = new List<NameAndPath>();
+                await Task.Run(delegate
                 {
-                    children.Add(new NameAndPath(System.IO.Path.GetFileName(path), path));
-                }
+                    Debug.WriteLine("CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess = " + Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess);
+                    string[] paths = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
+
+                    //sw.Stop();
+                    //Debug.WriteLine($"sw3 took {sw.ElapsedMilliseconds} msec");
+
+                    foreach (var path in paths)
+                    {
+                        children.Add(new NameAndPath(System.IO.Path.GetFileName(path), path));
+                    }
+                }).ConfigureAwait(false);
 
                 await RunInUiThreadAsync(delegate
                 {
