@@ -70,7 +70,7 @@
                     <TextBlock Grid.Column="1" Text="Pick a file" Margin="{StaticResource MarginSmall}"/>
                 </Grid>
             </Button>
-            <Button Click="{x:Bind VM.PinRootFolderAsync}" Style="{StaticResource Button0}">
+            <Button Click="{x:Bind VM.PinFolderAsync}" Style="{StaticResource Button0}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*"/>
@@ -80,7 +80,7 @@
                     <TextBlock Grid.Column="1" Text="Pin a folder" Margin="{StaticResource MarginSmall}"/>
                 </Grid>
             </Button>
-            <Button Click="{x:Bind VM.UnpinRootFoldersAsync}" Style="{StaticResource Button0}">
+            <Button Click="{x:Bind VM.UnpinFoldersAsync}" Style="{StaticResource Button0}">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1*"/>
@@ -93,7 +93,7 @@
         </uctl:UniversalWrapPanel>
 
         <ListView Grid.Row="1" 
-				  ItemsSource="{x:Bind VM.FoldersWithChildren, Mode=OneWay}"
+				  ItemsSource="{x:Bind VM.PinnedFolders, Mode=OneWay}"
 				  SelectionMode="Single">
             <!--<ListView.ItemsPanel>
 				<ItemsPanelTemplate>
@@ -111,7 +111,7 @@
 							Background="Transparent"
 							BorderThickness="0" 
 							IsDoubleTapEnabled="False" IsHoldingEnabled="False" IsRightTapEnabled="False"
-							Tapped="OnRootFolderPathBorder_Tapped">
+							Tapped="OnPinnedFolderPathBorder_Tapped">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="1*"/>
@@ -123,7 +123,7 @@
 									Text="{Binding FolderPath}"
 									TextWrapping="Wrap"
 									Margin="{StaticResource Margin10}"/>
-                                <Border Grid.Column="2" Background="Transparent" Tapped="OnRemoveRootFolderIcon_Tapped">
+                                <Border Grid.Column="2" Background="Transparent" Tapped="OnRemovePinnedFolderIcon_Tapped">
                                     <SymbolIcon Symbol="UnPin"/>
                                 </Border>
                             </Grid>

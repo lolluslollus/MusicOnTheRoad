@@ -39,38 +39,38 @@ namespace MusicOnTheRoad.Data
         {
             if (source == null || target == null) return;
 
-            target.ExpandedRootFolderPath = source.ExpandedRootFolderPath;
+            target.ExpandedPinnedFolderPath = source.ExpandedPinnedFolderPath;
             target.LastMessage = source.LastMessage;
-            target.RootFolderPaths.Clear();
-            target.RootFolderPaths.AddRange(source.RootFolderPaths);
+            target.PinnedFolderPaths.Clear();
+            target.PinnedFolderPaths.AddRange(source.PinnedFolderPaths);
         }
         #endregion lifecycle
 
         #region properties
-        private readonly SwitchableObservableCollection<string> _rootFolderPaths = new SwitchableObservableCollection<string>();
-        public SwitchableObservableCollection<string> RootFolderPaths { get { return _rootFolderPaths; } }
+        private readonly SwitchableObservableCollection<string> _pinnedFolderPaths = new SwitchableObservableCollection<string>();
+        public SwitchableObservableCollection<string> PinnedFolderPaths { get { return _pinnedFolderPaths; } }
 
-        public void AddRootFolderPath(string folderPath)
+        public void AddPinnedFolderPath(string folderPath)
         {
-            if (_rootFolderPaths.Any((record) => { return record == folderPath; })) return;
-            _rootFolderPaths.Add(folderPath);
+            if (_pinnedFolderPaths.Any((record) => { return record == folderPath; })) return;
+            _pinnedFolderPaths.Add(folderPath);
         }
-        public void RemoveRootFolderPath(string folderPath)
+        public void RemovePinnedFolderPath(string folderPath)
         {
-            var existingRecord = _rootFolderPaths.FirstOrDefault((record) => { return record == folderPath; });
+            var existingRecord = _pinnedFolderPaths.FirstOrDefault((record) => { return record == folderPath; });
             if (existingRecord == null) return;
-            _rootFolderPaths.Remove(existingRecord);
+            _pinnedFolderPaths.Remove(existingRecord);
         }
-        public void ClearRootFolders()
+        public void ClearFolders()
         {
-            _rootFolderPaths.Clear();
+            _pinnedFolderPaths.Clear();
         }
 
         private string _lastMessage = string.Empty;
         public string LastMessage { get { return _lastMessage; } set { _lastMessage = value; RaisePropertyChanged(); } }
 
-        private string _expandedRootFolderPath = null;
-        public string ExpandedRootFolderPath { get { return _expandedRootFolderPath; } set { _expandedRootFolderPath = value; RaisePropertyChanged(); } }
+        private string _expandedPinnedFolderPath = null;
+        public string ExpandedPinnedFolderPath { get { return _expandedPinnedFolderPath; } set { _expandedPinnedFolderPath = value; RaisePropertyChanged(); } }
         #endregion properties
     }
 }

@@ -78,9 +78,9 @@ namespace MusicOnTheRoad.Views
 		}
         #endregion lifecycle
 
-        private void OnRootFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
+        private void OnPinnedFolderPathBorder_Tapped(object sender, TappedRoutedEventArgs e)
 		{
-			Task task = _vm.OpenOrToggleExpandRootFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren);
+			Task task = _vm.OpenOrToggleExpandPinnedFolderAsync((sender as FrameworkElement).DataContext as FolderWithChildren);
 		}
 
 		private void OnChildFolderBorder_Tapped(object sender, TappedRoutedEventArgs e)
@@ -88,10 +88,10 @@ namespace MusicOnTheRoad.Views
             Task task = _vm.SetSourceFolderAsync((sender as FrameworkElement).DataContext as NameAndPath);
 		}
 
-		private void OnRemoveRootFolderIcon_Tapped(object sender, TappedRoutedEventArgs e)
+		private void OnRemovePinnedFolderIcon_Tapped(object sender, TappedRoutedEventArgs e)
 		{
 			e.Handled = true;
-            Task task = _vm.RemoveRootFolderAsync(((sender as FrameworkElement).DataContext as FolderWithChildren).FolderPath);
+            Task task = _vm.RemovePinnedFolderAsync(((sender as FrameworkElement).DataContext as FolderWithChildren).FolderPath);
 		}
 
         #region IDisposable Support

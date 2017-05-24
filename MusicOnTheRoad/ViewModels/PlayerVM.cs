@@ -26,8 +26,8 @@ namespace MusicOnTheRoad.ViewModels
         private readonly SemaphoreSlimSafeRelease _mediaSourceSemaphore = null;
 
         public IMediaPlaybackSource Source { get { return _source; } }
-        private readonly SwitchableObservableCollection<FolderWithChildren> _foldersWithChildren = new SwitchableObservableCollection<FolderWithChildren>();
-        public SwitchableObservableCollection<FolderWithChildren> FoldersWithChildren { get { return _foldersWithChildren; } }
+        private readonly SwitchableObservableCollection<FolderWithChildren> _pinnedFolders = new SwitchableObservableCollection<FolderWithChildren>();
+        public SwitchableObservableCollection<FolderWithChildren> PinnedFolders { get { return _pinnedFolders; } }
         private string _lastMessage = null;
         public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged(); } }
         private string _songTitle = null;
@@ -47,25 +47,25 @@ namespace MusicOnTheRoad.ViewModels
             RaisePropertyChanged(nameof(PersistentData));
 
             Task upd0 = UpdateLastMessageAsync();
-            Task upd1 = UpdateFoldersWithChildrenAsync();
+            Task upd1 = UpdatePinnedFoldersAsync();
         }
 
         #region updaters
-        private async Task UpdateFoldersWithChildrenAsync()
+        private async Task UpdatePinnedFoldersAsync()
         {
-            FolderWithChildren expandedRootFolder = null;
+            FolderWithChildren expandedPinnedFolder = null;
             await RunInUiThreadAsync(delegate
             {
-                _foldersWithChildren.Clear();
-                foreach (var folderPath in _persistentData.RootFolderPaths)
+                _pinnedFolders.Clear();
+                foreach (var folderPath in _persistentData.PinnedFolderPaths)
                 {
-                    _foldersWithChildren.Add(new FolderWithChildren(folderPath));
+                    _pinnedFolders.Add(new FolderWithChildren(System.IO.Path.GetFileName(folderPath), folderPath));
                 }
-                if (string.IsNullOrWhiteSpace(_persistentData.ExpandedRootFolderPath)) return;
-                expandedRootFolder = _foldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedRootFolderPath; });
+                if (string.IsNullOrWhiteSpace(_persistentData.ExpandedPinnedFolderPath)) return;
+                expandedPinnedFolder = _pinnedFolders.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedPinnedFolderPath; });
             }).ConfigureAwait(false);
-            if (expandedRootFolder == null) return;
-            await ToggleExpandRootFolderAsync(expandedRootFolder).ConfigureAwait(false);
+            if (expandedPinnedFolder == null) return;
+            await ToggleExpandPinnedFolderAsync(expandedPinnedFolder).ConfigureAwait(false);
         }
         private Task UpdateLastMessageAsync()
         {
@@ -215,48 +215,48 @@ namespace MusicOnTheRoad.ViewModels
             return true;
         }
 
-        public async Task PinRootFolderAsync()
+        public async Task PinFolderAsync()
         {
             var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
             if (folder == null) return;
 
             await RunInUiThreadAsync(delegate
             {
-                _persistentData.AddRootFolderPath(folder.Path);
+                _persistentData.AddPinnedFolderPath(folder.Path);
 
-                if (_foldersWithChildren.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
-                _foldersWithChildren.Add(new FolderWithChildren(folder.Name, folder.Path));
+                if (_pinnedFolders.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
+                _pinnedFolders.Add(new FolderWithChildren(folder.Name, folder.Path));
             }).ConfigureAwait(false);
         }
-        public Task UnpinRootFoldersAsync()
+        public Task UnpinFoldersAsync()
         {
             return RunInUiThreadAsync(delegate
             {
-                _persistentData.ClearRootFolders();
-                _foldersWithChildren.Clear();
+                _persistentData.ClearFolders();
+                _pinnedFolders.Clear();
             });
         }
-        private void CollapseRootFolders_UI()
+        private void CollapsePinnedFolders_UI()
         {
-            foreach (var item in _foldersWithChildren)
+            foreach (var item in _pinnedFolders)
             {
                 item.Children.Clear();
                 if (item.ExpandedMode == ExpandedModes.Expanded) item.ExpandedMode = ExpandedModes.NotExpanded;
             }
         }
 
-        public async Task OpenOrToggleExpandRootFolderAsync(FolderWithChildren folderWithChildren)
+        public async Task OpenOrToggleExpandPinnedFolderAsync(FolderWithChildren pinnedFolder)
         {
-            if (await IsFolderWithMusicAsync(folderWithChildren.FolderPath))
+            if (await IsFolderWithMusicAsync(pinnedFolder.FolderPath))
             {
-                folderWithChildren.ExpandedMode = ExpandedModes.NotExpandable;
-                await SetSourceFolderAsync(new NameAndPath(folderWithChildren.FolderName, folderWithChildren.FolderPath)).ConfigureAwait(false);
+                pinnedFolder.ExpandedMode = ExpandedModes.NotExpandable;
+                await SetSourceFolderAsync(new NameAndPath(pinnedFolder.FolderName, pinnedFolder.FolderPath)).ConfigureAwait(false);
                 return;
             }
-            await ToggleExpandRootFolderAsync(folderWithChildren).ConfigureAwait(false);
+            await ToggleExpandPinnedFolderAsync(pinnedFolder).ConfigureAwait(false);
         }
 
-        private async Task ToggleExpandRootFolderAsync(FolderWithChildren folderWithChildren)
+        private async Task ToggleExpandPinnedFolderAsync(FolderWithChildren folderWithChildren)
         {
             try
             {
@@ -265,13 +265,13 @@ namespace MusicOnTheRoad.ViewModels
                 await RunInUiThreadAsync(delegate
                 {
                     IsLoadingChildren = true;
-                    toBeExpanded = _foldersWithChildren.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
+                    toBeExpanded = _pinnedFolders.FirstOrDefault((fwc) => { return fwc.FolderPath == folderWithChildren.FolderPath; });
                     bool isExpanded = toBeExpanded?.Children?.Count > 0;
-                    CollapseRootFolders_UI();
+                    CollapsePinnedFolders_UI();
 
                     if (toBeExpanded == null || isExpanded)
                     {
-                        _persistentData.ExpandedRootFolderPath = null;
+                        _persistentData.ExpandedPinnedFolderPath = null;
                         isShrinking = true;
                     }
                 }).ConfigureAwait(false);
@@ -298,7 +298,7 @@ namespace MusicOnTheRoad.ViewModels
                 List<NameAndPath> children = new List<NameAndPath>();
                 await Task.Run(delegate
                 {
-                    Debug.WriteLine("CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess = " + Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess);
+                    //Debug.WriteLine("CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess = " + Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.HasThreadAccess);
                     string[] paths = System.IO.Directory.GetDirectories(folderWithChildren.FolderPath);
 
                     //sw.Stop();
@@ -314,7 +314,7 @@ namespace MusicOnTheRoad.ViewModels
                 {
                     toBeExpanded.Children.AddRange(children);
                     toBeExpanded.ExpandedMode = ExpandedModes.Expanded;
-                    _persistentData.ExpandedRootFolderPath = toBeExpanded.FolderPath;
+                    _persistentData.ExpandedPinnedFolderPath = toBeExpanded.FolderPath;
                 }).ConfigureAwait(false);
             }
             finally
@@ -326,15 +326,15 @@ namespace MusicOnTheRoad.ViewModels
             }
         }
 
-        public Task RemoveRootFolderAsync(string folderPath)
+        public Task RemovePinnedFolderAsync(string folderPath)
         {
             return RunInUiThreadAsync(delegate
             {
-                _persistentData.RemoveRootFolderPath(folderPath);
+                _persistentData.RemovePinnedFolderPath(folderPath);
 
-                var toBeRemoved = _foldersWithChildren.FirstOrDefault((folderWithChildren) => { return folderWithChildren.FolderPath == folderPath; });
+                var toBeRemoved = _pinnedFolders.FirstOrDefault((folderWithChildren) => { return folderWithChildren.FolderPath == folderPath; });
                 if (toBeRemoved == null) return;
-                _foldersWithChildren.Remove(toBeRemoved);
+                _pinnedFolders.Remove(toBeRemoved);
             });
         }
         #endregion user actions
@@ -381,7 +381,7 @@ namespace MusicOnTheRoad.ViewModels
         private void OnSuspensionManager_Loaded(object sender, bool e)
         {
             Task upd0 = UpdateLastMessageAsync();
-            Task upd1 = UpdateFoldersWithChildrenAsync();
+            Task upd1 = UpdatePinnedFoldersAsync();
         }
 
         private void OnPersistentData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -433,7 +433,7 @@ namespace MusicOnTheRoad.ViewModels
         private void OnMediaPlaybackList_ItemFailed(MediaPlaybackList sender, MediaPlaybackItemFailedEventArgs args)
         {
             var message = args?.Error?.ExtendedError?.Message;
-            UpdateLastMessageAsync(message == null ? "media error" : message);
+            UpdateLastMessageAsync(message == null ? "Media error" : message);
         }
 
         private void OnMediaPlaybackList_CurrentItemChanged(MediaPlaybackList sender, CurrentMediaPlaybackItemChangedEventArgs args)
@@ -494,6 +494,7 @@ namespace MusicOnTheRoad.ViewModels
     }
 
     public enum ExpandedModes { DontKnow, NotExpanded, Expanded, NotExpandable }
+
     public class FolderWithChildren : ObservableData
     {
         private string _folderName = null;
@@ -505,11 +506,6 @@ namespace MusicOnTheRoad.ViewModels
         private ExpandedModes _isExpanded = ExpandedModes.DontKnow;
         public ExpandedModes ExpandedMode { get { return _isExpanded; } set { _isExpanded = value; RaisePropertyChanged(); } }
 
-        public FolderWithChildren(string folderPath)
-        {
-            FolderName = System.IO.Path.GetFileName(folderPath);
-            FolderPath = folderPath;
-        }
         public FolderWithChildren(string folderName, string folderPath)
         {
             FolderName = folderName;
