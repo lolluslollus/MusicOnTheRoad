@@ -239,7 +239,7 @@ namespace MusicOnTheRoad.ViewModels
             uint albumTrackCount = musicFiles != null ? Convert.ToUInt32(musicFiles.Count()) : 0;
             foreach (var file in musicFiles)
             {
-                if (mediaPlaybackList.Items.Count == MaxPlaylistItems) break;
+                //if (mediaPlaybackList.Items.Count == MaxPlaylistItems) break; // NO! too slow, it's really slow!
                 var mediaPlaybackItem = new MediaPlaybackItem(MediaSource.CreateFromStorageFile(file)) { AutoLoadedDisplayProperties = AutoLoadedDisplayPropertyKind.Music, CanSkip = true };
 
                 var displayProperties = mediaPlaybackItem.GetDisplayProperties();
