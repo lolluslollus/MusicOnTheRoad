@@ -1,10 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3" IgnorableNamespaces="uap mp uap3">
-  <Identity Name="11f20e60-d439-4c9f-8c39-54a6bc7a72bd" Publisher="CN=lollu" Version="1.0.0.0" />
-  <mp:PhoneIdentity PhoneProductId="11f20e60-d439-4c9f-8c39-54a6bc7a72bd" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <Identity Name="35701Lollus.MusicOnTheRoad" Publisher="CN=9B2F7926-7E04-4BF6-BDB8-A8FD12FC5378" Version="1.1.0.0" />
+  <mp:PhoneIdentity PhoneProductId="569c1f33-723a-4fcd-8cec-b533f304d482" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
-    <DisplayName>MusicOnTheRoad</DisplayName>
-    <PublisherDisplayName>lollu</PublisherDisplayName>
+    <DisplayName>Music On The Road</DisplayName>
+    <PublisherDisplayName>Lollus</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
   <Dependencies>
@@ -15,7 +15,7 @@
   </Resources>
   <Applications>
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="MusicOnTheRoad.App">
-      <uap:VisualElements DisplayName="MusicOnTheRoad" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="MusicOnTheRoad" BackgroundColor="transparent">
+      <uap:VisualElements DisplayName="Music On The Road" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png" Description="MusicOnTheRoad" BackgroundColor="transparent">
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square310x310Logo="Assets\LargeTile.png" Square71x71Logo="Assets\SmallTile.png" ShortName="Music On The Road">
           <uap:ShowNameOnTiles>
             <uap:ShowOn Tile="square150x150Logo" />
@@ -26,20 +26,18 @@
         <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="mediumBlue" />
       </uap:VisualElements>
       <Extensions>
-        <uap:Extension Category="windows.fileOpenPicker">
-          <uap:FileOpenPicker>
-            <uap:SupportedFileTypes>
-              <uap:FileType>.flac</uap:FileType>
-              <uap:FileType>.wav</uap:FileType>
-              <uap:FileType>.mp3</uap:FileType>
-            </uap:SupportedFileTypes>
-          </uap:FileOpenPicker>
+        <uap:Extension Category="windows.mediaPlayback">
+          <uap:MediaPlayback>
+            <uap:Codec Name="mp3" />
+            <uap:Codec Name="wav" />
+            <uap:Codec Name="flac" />
+          </uap:MediaPlayback>
         </uap:Extension>
         <uap:Extension Category="windows.fileTypeAssociation">
-          <uap:FileTypeAssociation Name=".wav">
-            <uap:DisplayName>WAV</uap:DisplayName>
+          <uap:FileTypeAssociation Name=".flac">
+            <uap:DisplayName>FLAC</uap:DisplayName>
             <uap:SupportedFileTypes>
-              <uap:FileType>.wav</uap:FileType>
+              <uap:FileType>.flac</uap:FileType>
             </uap:SupportedFileTypes>
           </uap:FileTypeAssociation>
         </uap:Extension>
@@ -52,19 +50,21 @@
           </uap:FileTypeAssociation>
         </uap:Extension>
         <uap:Extension Category="windows.fileTypeAssociation">
-          <uap:FileTypeAssociation Name=".flac">
-            <uap:DisplayName>FLAC</uap:DisplayName>
+          <uap:FileTypeAssociation Name=".wav">
+            <uap:DisplayName>WAV</uap:DisplayName>
             <uap:SupportedFileTypes>
-              <uap:FileType>.flac</uap:FileType>
+              <uap:FileType>.wav</uap:FileType>
             </uap:SupportedFileTypes>
           </uap:FileTypeAssociation>
         </uap:Extension>
-        <uap:Extension Category="windows.mediaPlayback">
-          <uap:MediaPlayback>
-            <uap:Codec Name="mp3" />
-            <uap:Codec Name="wav" />
-            <uap:Codec Name="flac" />
-          </uap:MediaPlayback>
+        <uap:Extension Category="windows.fileOpenPicker">
+          <uap:FileOpenPicker>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.flac</uap:FileType>
+              <uap:FileType>.wav</uap:FileType>
+              <uap:FileType>.mp3</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileOpenPicker>
         </uap:Extension>
       </Extensions>
     </Application>
