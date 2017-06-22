@@ -90,6 +90,16 @@
                     <TextBlock Grid.Column="1" Text="Unpin folders" Margin="{StaticResource MarginSmall}"/>
                 </Grid>
             </Button>
+            <ToggleButton IsChecked="{x:Bind VM.PersistentData.IsKeepAlive, Mode=TwoWay}" Style="{StaticResource ToggleButton0}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="2*"/>
+                    </Grid.ColumnDefinitions>
+                    <SymbolIcon Symbol="MapPin"/>
+                    <TextBlock Grid.Column="1" Text="Keep alive" Margin="{StaticResource MarginSmall}"/>
+                </Grid>
+            </ToggleButton>
         </uctl:UniversalWrapPanel>
 
         <ListView Grid.Row="1" 

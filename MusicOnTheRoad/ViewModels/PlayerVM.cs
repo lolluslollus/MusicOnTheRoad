@@ -50,6 +50,7 @@ namespace MusicOnTheRoad.ViewModels
 
             Task upd0 = UpdateLastMessageAsync();
             Task upd1 = UpdatePinnedFoldersAsync();
+            Task upd2 = UpdateKeepAliveAsync();
         }
 
         #region updaters
@@ -83,7 +84,14 @@ namespace MusicOnTheRoad.ViewModels
                 LastMessage = message;
             });
         }
-
+        private Task UpdateKeepAliveAsync()
+        {
+            bool isKeepAlive = _persistentData?.IsKeepAlive ?? false;
+            return RunInUiThreadAsync(delegate
+            {
+                KeepAlive.UpdateKeepAlive(isKeepAlive);
+            });
+        }
         private Task UpdateSongTitleAsync(MusicDisplayProperties displayProperties)
         {
             return RunInUiThreadAsync(delegate
@@ -281,7 +289,7 @@ namespace MusicOnTheRoad.ViewModels
         {
             return RunInUiThreadAsync(delegate
             {
-                _persistentData.ClearFolders();
+                _persistentData.ClearPinnedFolderPaths();
                 _pinnedFolders.Clear();
             });
         }
@@ -407,20 +415,14 @@ namespace MusicOnTheRoad.ViewModels
             if (_isDataChangedHandlersActive) return;
             SuspensionManager.Loaded += OnSuspensionManager_Loaded;
             var persistentData = _persistentData;
-            if (persistentData != null)
-            {
-                persistentData.PropertyChanged += OnPersistentData_PropertyChanged;
-            }
+            if (persistentData != null) persistentData.PropertyChanged += OnPersistentData_PropertyChanged;
             _isDataChangedHandlersActive = true;
         }
         private void RemoveDataChangedHandlers()
         {
             SuspensionManager.Loaded -= OnSuspensionManager_Loaded;
             var persistentData = _persistentData;
-            if (persistentData != null)
-            {
-                persistentData.PropertyChanged -= OnPersistentData_PropertyChanged;
-            }
+            if (persistentData != null) persistentData.PropertyChanged -= OnPersistentData_PropertyChanged;
             _isDataChangedHandlersActive = false;
         }
 
@@ -428,13 +430,18 @@ namespace MusicOnTheRoad.ViewModels
         {
             Task upd0 = UpdateLastMessageAsync();
             Task upd1 = UpdatePinnedFoldersAsync();
+            Task upd2 = UpdateKeepAliveAsync();
         }
 
-        private void OnPersistentData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        private async void OnPersistentData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(PersistentData.LastMessage))
             {
-                UpdateLastMessageAsync();
+                await UpdateLastMessageAsync().ConfigureAwait(false);
+            }
+            else if (e.PropertyName == nameof(PersistentData.IsKeepAlive))
+            {
+                await UpdateKeepAliveAsync().ConfigureAwait(false);
             }
         }
         #endregion data event handlers
@@ -494,21 +501,21 @@ namespace MusicOnTheRoad.ViewModels
 
         private /*virtual*/ void Dispose(bool isDisposing)
         {
-            if (!isDisposed)
+            if (isDisposed) return;
+
+            if (isDisposing)
             {
-                if (isDisposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                    RemoveDataChangedHandlers();
-                    RemoveMediaHandlers();
-                    SemaphoreSlimSafeRelease.TryDispose(_mediaSourceSemaphore);
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
-
-                isDisposed = true;
+                // TODO: dispose managed state (managed objects).
+                RemoveDataChangedHandlers();
+                RemoveMediaHandlers();
+                Task stopKeepAlive = RunInUiThreadAsync(() => KeepAlive.StopKeepAlive());
+                SemaphoreSlimSafeRelease.TryDispose(_mediaSourceSemaphore);
             }
+
+            // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+            // TODO: set large fields to null.
+
+            isDisposed = true;
         }
 
         // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.

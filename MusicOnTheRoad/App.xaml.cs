@@ -51,7 +51,7 @@ namespace MusicOnTheRoad
 			try
 			{
 				Logger.Add_TPL("App OnEnteredBackground", Logger.AppEventsLogFilename, Logger.Severity.Info, false);
-				await SuspensionManager.SaveAsync();
+				await SuspensionManager.SaveAsync().ConfigureAwait(false);
 			}
 			finally
 			{
@@ -82,10 +82,10 @@ namespace MusicOnTheRoad
 
 				rootFrame.NavigationFailed += OnNavigationFailed;
 
-				if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
-				{
-					//MS TODO: Load state from previously suspended application
-				}
+				//if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
+				//{
+				//	//MS TODO: Load state from previously suspended application
+				//}
 
 				// Place the frame in the current Window
 				Window.Current.Content = rootFrame;
@@ -115,8 +115,7 @@ namespace MusicOnTheRoad
 			try
 			{
 				Logger.Add_TPL("App OnLeavingBackground", Logger.AppEventsLogFilename, Logger.Severity.Info, false);
-				if (SuspensionManager.IsLoaded) return;
-				await SuspensionManager.LoadAsync();
+				await SuspensionManager.LoadAsync().ConfigureAwait(false);
 			}
 			finally
 			{

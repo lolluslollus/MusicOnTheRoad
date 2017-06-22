@@ -21,29 +21,24 @@ namespace MusicOnTheRoad.Data
             }
         }
 
-        public static void SetInstanceProperties(PersistentData from)
+        public static PersistentData GetInstanceWithProperties(PersistentData from)
         {
-            if (from == null) return;
-            try
+            if (from == null) throw new ArgumentException();
+            lock (_instanceLock)
             {
-                var dataToBeChanged = GetInstance();
-                //I must clone memberwise, otherwise the current event handlers get lost
-                CloneProperties(from, ref dataToBeChanged);
-            }
-            catch (Exception ex)
-            {
-                Logger.Add_TPL(ex.ToString(), Logger.PersistentDataLogFilename);
+                _instance = from;
+                return _instance;
             }
         }
-        private static void CloneProperties(PersistentData source, ref PersistentData target)
-        {
-            if (source == null || target == null) return;
+        //private static void CloneProperties(PersistentData source, ref PersistentData target)
+        //{
+        //    if (source == null || target == null) return;
 
-            target.ExpandedPinnedFolderPath = source.ExpandedPinnedFolderPath;
-            target.LastMessage = source.LastMessage;
-            target.PinnedFolderPaths.Clear();
-            target.PinnedFolderPaths.AddRange(source.PinnedFolderPaths);
-        }
+        //    target.ExpandedPinnedFolderPath = source.ExpandedPinnedFolderPath;
+        //    target.LastMessage = source.LastMessage;
+        //    target.PinnedFolderPaths.Clear();
+        //    target.PinnedFolderPaths.AddRange(source.PinnedFolderPaths);
+        //}
         #endregion lifecycle
 
         #region properties
@@ -61,7 +56,7 @@ namespace MusicOnTheRoad.Data
             if (existingRecord == null) return;
             _pinnedFolderPaths.Remove(existingRecord);
         }
-        public void ClearFolders()
+        public void ClearPinnedFolderPaths()
         {
             _pinnedFolderPaths.Clear();
         }
@@ -71,6 +66,9 @@ namespace MusicOnTheRoad.Data
 
         private string _expandedPinnedFolderPath = null;
         public string ExpandedPinnedFolderPath { get { return _expandedPinnedFolderPath; } set { _expandedPinnedFolderPath = value; RaisePropertyChanged(); } }
+
+        private bool _isKeepAlive = false;
+        public bool IsKeepAlive { get { return _isKeepAlive; } set { _isKeepAlive = value; RaisePropertyChanged(); } }
         #endregion properties
     }
 }

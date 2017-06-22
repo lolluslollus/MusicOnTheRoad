@@ -60,17 +60,8 @@ namespace MusicOnTheRoad.Views
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             _vm = new PlayerVM(mediaPlayerElement.MediaPlayer);
-            //_vm.PropertyChanged += OnVMPropertyChanged;
             RaisePropertyChanged_UI(nameof(VM));
         }
-
-        //private void OnVMPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
-        //{
-        //    if (e.PropertyName == nameof(VM.IsBusy)) {
-        //        if (VM.IsBusy) ShowLoadingOverlay.Begin();
-        //        else HideLoadingOverlay.Begin();
-        //    }
-        //}
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
@@ -99,25 +90,20 @@ namespace MusicOnTheRoad.Views
 
         void Dispose(bool isDisposing)
         {
-            if (!isDisposed)
+            if (isDisposed) return;
+
+            if (isDisposing)
             {
-                if (isDisposing)
-                {
-                    // TODO: dispose managed state (managed objects).
-                    var vm = _vm;
-                    if (vm != null)
-                    {
-                        //vm.PropertyChanged -= OnVMPropertyChanged;
-                        vm.Dispose();
-                    }
-                    _vm = null;
-                }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
-                // TODO: set large fields to null.
-
-                isDisposed = true;
+                // TODO: dispose managed state (managed objects).
+                var vm = _vm;
+                if (vm != null) vm.Dispose();
+                _vm = null;
             }
+
+            // TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+            // TODO: set large fields to null.
+
+            isDisposed = true;
         }
 
         // TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
