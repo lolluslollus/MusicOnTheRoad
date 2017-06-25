@@ -134,7 +134,7 @@ namespace MusicOnTheRoad.ViewModels
         #region user actions
         public async Task PickSourceFileAsync()
         {
-            var file = await Utilz.Pickers.PickOpenFileAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
+            var file = await Pickers.PickOpenFileAsync(ConstantData.Extensions, Pickers.PICKED_OPEN_FILE_TOKEN, PickerLocationId.MusicLibrary);
             if (file == null) return;
 
             List<string> songTitles = new List<string>();
@@ -166,7 +166,7 @@ namespace MusicOnTheRoad.ViewModels
         }
         public async Task PickSourceFolderAsync()
         {
-            var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary).ConfigureAwait(false);
+            var folder = await Pickers.PickDirectoryAsync(ConstantData.Extensions, Pickers.PICKED_FOLDER_TOKEN, PickerLocationId.MusicLibrary).ConfigureAwait(false);
             if (folder == null) return;
 
             await SetSourceFolderAsync(folder).ConfigureAwait(false);
@@ -274,7 +274,7 @@ namespace MusicOnTheRoad.ViewModels
 
         public async Task PinFolderAsync()
         {
-            var folder = await Utilz.Pickers.PickDirectoryAsync(ConstantData.Extensions, PickerLocationId.MusicLibrary);
+            var folder = await Pickers.PickDirectoryAsync(ConstantData.Extensions, Pickers.PICKED_FOLDER_TOKEN, PickerLocationId.MusicLibrary);
             if (folder == null) return;
 
             await RunInUiThreadAsync(delegate
