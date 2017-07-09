@@ -19,6 +19,8 @@
     <WindowsXamlEnableOverview>true</WindowsXamlEnableOverview>
     <PackageCertificateKeyFile>MusicOnTheRoad_StoreKey.pfx</PackageCertificateKeyFile>
     <PackageCertificateThumbprint>32EDA1ADCD6A5ABC3607924DBB360EEEE712D9BC</PackageCertificateThumbprint>
+    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
+    <AppxBundle>Never</AppxBundle>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>

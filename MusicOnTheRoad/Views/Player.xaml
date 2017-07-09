@@ -41,6 +41,7 @@
             <RowDefinition Height="5*"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="2*"/>
         </Grid.RowDefinitions>
 
@@ -169,33 +170,25 @@
             </ListView.ItemTemplate>
         </ListView>
 
-        <!-- loading overlay -->
-        <!--<Grid x:Name="LoadingOverlay" Grid.Row="0" Grid.RowSpan="2"
-			  Background="White"
-			  Opacity=".5"
-			  Canvas.ZIndex="999"
-              Visibility="{x:Bind VM.IsBusy, Converter={StaticResource BoolToVisible}, Mode=OneWay, FallbackValue=Visible}">
-            <TextBlock
-				FontSize="{StaticResource LargeFontSize}"
-				HorizontalAlignment="Center"
-				Opacity="1"
-				Text="Loading..." 
-				VerticalAlignment="Center"/>
-        </Grid>-->
-
-        <TextBlock Grid.Row="2" 
+        <TextBlock Grid.Row="2"
 				   FontSize="{StaticResource LargeFontSize}"
 				   Margin="{StaticResource Margin10}"
-				   Text="{x:Bind VM.SongTitle, Mode=OneWay}"
+				   Text="{x:Bind VM.AlbumTitle, Mode=OneWay}"
 				   TextWrapping="WrapWholeWords"/>
 
         <TextBlock Grid.Row="3" 
 				   FontSize="{StaticResource LargeFontSize}"
 				   Margin="{StaticResource Margin10}"
+				   Text="{x:Bind VM.SongTitle, Mode=OneWay}"
+				   TextWrapping="WrapWholeWords"/>
+
+        <TextBlock Grid.Row="4" 
+				   FontSize="{StaticResource LargeFontSize}"
+				   Margin="{StaticResource Margin10}"
 				   Text="{x:Bind VM.LastMessage, Mode=OneWay}"
 				   TextWrapping="WrapWholeWords"/>
 
-        <MediaPlayerElement Grid.Row="4" x:Name="mediaPlayerElement"
+        <MediaPlayerElement Grid.Row="5" x:Name="mediaPlayerElement"
 							AreTransportControlsEnabled="True"
 							AutoPlay="True"							
 							Source="{x:Bind VM.Source, Mode=OneWay}"/>

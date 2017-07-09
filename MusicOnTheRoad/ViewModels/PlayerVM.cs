@@ -32,6 +32,8 @@ namespace MusicOnTheRoad.ViewModels
         public SwitchableObservableCollection<FolderWithChildren> PinnedFolders { get { return _pinnedFolders; } }
         private string _lastMessage = null;
         public string LastMessage { get { return _lastMessage; } private set { _lastMessage = value; RaisePropertyChanged(); } }
+        private string _albumTitle = null;
+        public string AlbumTitle { get { return _albumTitle; } private set { _albumTitle = value; RaisePropertyChanged(); } }
         private string _songTitle = null;
         public string SongTitle { get { return _songTitle; } private set { _songTitle = value; RaisePropertyChanged(); } }
         private bool _isBusy = false;
@@ -56,18 +58,22 @@ namespace MusicOnTheRoad.ViewModels
         #region updaters
         private async Task UpdatePinnedFoldersAsync()
         {
-            FolderWithChildren expandedPinnedFolder = null;
-            await RunInUiThreadAsync(delegate
+            await RunInUiThreadAsyncT(async delegate
             {
                 _pinnedFolders.Clear();
                 foreach (var folderPath in _persistentData.PinnedFolderPaths)
                 {
-                    _pinnedFolders.Add(new FolderWithChildren(System.IO.Path.GetFileName(folderPath), folderPath));
+                    var folder = await Pickers.GetPreviouslyPickedFolderAsync(folderPath, new System.Threading.CancellationToken(false));
+                    if (folder == null) continue;
+                    _pinnedFolders.Add(new FolderWithChildren(folder.Name, folder.Path));
+                    //_pinnedFolders.Add(new FolderWithChildren(System.IO.Path.GetFileName(folderPath), folderPath));
                 }
-                if (string.IsNullOrWhiteSpace(_persistentData.ExpandedPinnedFolderPath)) return;
-                expandedPinnedFolder = _pinnedFolders.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedPinnedFolderPath; });
             }).ConfigureAwait(false);
+
+            if (string.IsNullOrWhiteSpace(_persistentData.ExpandedPinnedFolderPath)) return;
+            var expandedPinnedFolder = _pinnedFolders.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedPinnedFolderPath; });
             if (expandedPinnedFolder == null) return;
+
             await ToggleExpandPinnedFolderAsync(expandedPinnedFolder).ConfigureAwait(false);
         }
         private Task UpdateLastMessageAsync()
@@ -98,7 +104,8 @@ namespace MusicOnTheRoad.ViewModels
             {
                 if (displayProperties == null)
                 {
-                    SongTitle = "Error displaying the song title";
+                    AlbumTitle = "Error with the album title";
+                    SongTitle = "Error with the song title";
                     return;
                 }
 
@@ -110,6 +117,19 @@ namespace MusicOnTheRoad.ViewModels
                 {
                     SongTitle = $"{displayProperties.Title}";
                 }
+
+                string albumTitle = string.Empty;
+                if (!string.IsNullOrWhiteSpace(displayProperties.AlbumArtist))
+                    albumTitle = displayProperties.AlbumArtist;
+                else if (string.IsNullOrWhiteSpace(displayProperties.Artist))
+                    albumTitle = displayProperties.Artist;
+
+                if (!string.IsNullOrWhiteSpace(albumTitle) && !string.IsNullOrWhiteSpace(displayProperties.AlbumTitle))
+                    albumTitle += " - ";
+
+                albumTitle += displayProperties.AlbumTitle;
+
+                AlbumTitle = albumTitle;
             });
         }
         private void UpdateAudioQuality(AudioTrack audioTrack)
@@ -166,7 +186,7 @@ namespace MusicOnTheRoad.ViewModels
         }
         public async Task PickSourceFolderAsync()
         {
-            var folder = await Pickers.PickDirectoryAsync(ConstantData.Extensions, Pickers.PICKED_FOLDER_TOKEN, PickerLocationId.MusicLibrary).ConfigureAwait(false);
+            var folder = await Pickers.PickFolderAsync(ConstantData.Extensions, Pickers.PICKED_FOLDER_TOKEN, PickerLocationId.MusicLibrary).ConfigureAwait(false);
             if (folder == null) return;
 
             await SetSourceFolderAsync(folder).ConfigureAwait(false);
@@ -274,14 +294,15 @@ namespace MusicOnTheRoad.ViewModels
 
         public async Task PinFolderAsync()
         {
-            var folder = await Pickers.PickDirectoryAsync(ConstantData.Extensions, Pickers.PICKED_FOLDER_TOKEN, PickerLocationId.MusicLibrary);
-            if (folder == null) return;
+            var folder = await Pickers.PickFolderAsync(ConstantData.Extensions, Pickers.PICKED_FOLDER_TOKEN, PickerLocationId.MusicLibrary);
+            if (string.IsNullOrWhiteSpace(folder?.Path)) return;
 
+            Pickers.SetPickedFolder(folder, folder.Path); // set the token equal to the path, for later retrieval
             await RunInUiThreadAsync(delegate
             {
                 _persistentData.AddPinnedFolderPath(folder.Path);
 
-                if (_pinnedFolders.Any((fwc) => { return fwc.FolderPath == folder.Path; })) return;
+                if (_pinnedFolders.Any((fwc) => fwc.FolderPath == folder.Path)) return;
                 _pinnedFolders.Add(new FolderWithChildren(folder.Name, folder.Path));
             }).ConfigureAwait(false);
         }
@@ -426,8 +447,9 @@ namespace MusicOnTheRoad.ViewModels
             _isDataChangedHandlersActive = false;
         }
 
-        private void OnSuspensionManager_Loaded(object sender, bool e)
+        private void OnSuspensionManager_Loaded(object sender, bool isLoaded)
         {
+            if (!isLoaded) return;
             Task upd0 = UpdateLastMessageAsync();
             Task upd1 = UpdatePinnedFoldersAsync();
             Task upd2 = UpdateKeepAliveAsync();
