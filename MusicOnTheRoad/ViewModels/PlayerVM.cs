@@ -21,7 +21,7 @@ namespace MusicOnTheRoad.ViewModels
         #region properties
         public const int MaxPlaylistItems = 200;
 
-        private readonly PersistentData _persistentData = null;
+        private PersistentData _persistentData = null;
         public PersistentData PersistentData { get { return _persistentData; } }
         private readonly MediaPlayer _mediaPlayer = null;
         private volatile IMediaPlaybackSource _source = null;
@@ -46,22 +46,41 @@ namespace MusicOnTheRoad.ViewModels
             _mediaPlayer = mediaPlayer;
             AddMediaHandlers();
 
-            _persistentData = PersistentData.GetInstance();
-            AddDataChangedHandlers();
-            RaisePropertyChanged(nameof(PersistentData));
-
-            Task upd0 = UpdateLastMessageAsync();
-            Task upd1 = UpdatePinnedFoldersAsync();
-            Task upd2 = UpdateKeepAliveAsync();
+            SuspensionManager.Loaded += OnSuspensionManager_Loaded;
+            UpdateFromPersistentData();
         }
 
         #region updaters
+        private void UpdateFromPersistentData()
+        {
+            if (SuspensionManager.IsLoaded)
+            {
+                var pd = _persistentData = PersistentData.GetInstance();
+                RaisePropertyChanged_UI(nameof(PersistentData));
+
+                if (pd != null) pd.PropertyChanged += OnPersistentData_PropertyChanged;
+
+                Task upd0 = UpdateLastMessageAsync();
+                Task upd1 = UpdatePinnedFoldersAsync();
+                Task upd2 = UpdateKeepAliveAsync();
+            }
+            else
+            {
+                var pd = _persistentData;
+                if (pd != null) pd.PropertyChanged -= OnPersistentData_PropertyChanged;
+            }
+        }
+
         private async Task UpdatePinnedFoldersAsync()
         {
+            var pd = PersistentData;
+            if (pd == null) return;
+
             await RunInUiThreadAsyncT(async delegate
             {
                 _pinnedFolders.Clear();
-                foreach (var folderPath in _persistentData.PinnedFolderPaths)
+
+                foreach (var folderPath in pd.PinnedFolderPaths)
                 {
                     var folder = await Pickers.GetPreviouslyPickedFolderAsync(folderPath, new System.Threading.CancellationToken(false));
                     if (folder == null) continue;
@@ -70,17 +89,20 @@ namespace MusicOnTheRoad.ViewModels
                 }
             }).ConfigureAwait(false);
 
-            if (string.IsNullOrWhiteSpace(_persistentData.ExpandedPinnedFolderPath)) return;
-            var expandedPinnedFolder = _pinnedFolders.FirstOrDefault((fwc) => { return fwc.FolderPath == _persistentData.ExpandedPinnedFolderPath; });
+            if (string.IsNullOrWhiteSpace(pd.ExpandedPinnedFolderPath)) return;
+            var expandedPinnedFolder = _pinnedFolders.FirstOrDefault((fwc) => { return fwc.FolderPath == pd.ExpandedPinnedFolderPath; });
             if (expandedPinnedFolder == null) return;
 
             await ToggleExpandPinnedFolderAsync(expandedPinnedFolder).ConfigureAwait(false);
         }
         private Task UpdateLastMessageAsync()
         {
+            var pd = PersistentData;
+            if (pd == null) return Task.CompletedTask;
+
             return RunInUiThreadAsync(delegate
             {
-                LastMessage = _persistentData.LastMessage;
+                LastMessage = pd.LastMessage;
             });
         }
         private Task UpdateLastMessageAsync(string message)
@@ -92,7 +114,10 @@ namespace MusicOnTheRoad.ViewModels
         }
         private Task UpdateKeepAliveAsync()
         {
-            bool isKeepAlive = _persistentData?.IsKeepAlive ?? false;
+            var pd = PersistentData;
+            if (pd == null) return Task.CompletedTask;
+
+            bool isKeepAlive = pd.IsKeepAlive;
             return RunInUiThreadAsync(delegate
             {
                 KeepAlive.UpdateKeepAlive(isKeepAlive);
@@ -109,20 +134,31 @@ namespace MusicOnTheRoad.ViewModels
                     return;
                 }
 
+                string artist = displayProperties.Artist;
+                string songTitle = string.Empty;
                 if (displayProperties.TrackNumber > 0 && displayProperties.AlbumTrackCount > 0)
                 {
-                    SongTitle = $"{displayProperties.Title} - {displayProperties.TrackNumber} of {displayProperties.AlbumTrackCount}";
+                    songTitle = $"´{artist}{displayProperties.Title} - {displayProperties.TrackNumber} of {displayProperties.AlbumTrackCount}";
                 }
                 else
                 {
-                    SongTitle = $"{displayProperties.Title}";
+                    songTitle = $"{artist}{displayProperties.Title}";
                 }
+
+                if (!string.IsNullOrWhiteSpace(artist) && !string.IsNullOrWhiteSpace(songTitle))
+                    SongTitle = $"{artist} - {songTitle}";
+                else if (!string.IsNullOrWhiteSpace(artist))
+                    SongTitle = artist;
+                else if (!string.IsNullOrWhiteSpace(songTitle))
+                    SongTitle = songTitle;
+                else
+                    SongTitle = "Unknown track";
 
                 string albumTitle = string.Empty;
                 if (!string.IsNullOrWhiteSpace(displayProperties.AlbumArtist))
                     albumTitle = displayProperties.AlbumArtist;
-                else if (string.IsNullOrWhiteSpace(displayProperties.Artist))
-                    albumTitle = displayProperties.Artist;
+                //else if (string.IsNullOrWhiteSpace(displayProperties.Artist))
+                //    albumTitle = displayProperties.Artist;
 
                 if (!string.IsNullOrWhiteSpace(albumTitle) && !string.IsNullOrWhiteSpace(displayProperties.AlbumTitle))
                     albumTitle += " - ";
@@ -137,8 +173,8 @@ namespace MusicOnTheRoad.ViewModels
             if (audioTrack == null) return;
             try
             {
-                var encodingProperties = audioTrack?.GetEncodingProperties();
-                var supportInfo = audioTrack?.SupportInfo;
+                var encodingProperties = audioTrack.GetEncodingProperties();
+                var supportInfo = audioTrack.SupportInfo;
                 if (supportInfo == null || encodingProperties == null) return;
 
                 string audioQuality = $"{encodingProperties.ChannelCount} channels, {encodingProperties.BitsPerSample} bit, {encodingProperties.SampleRate} kHz, {encodingProperties.Subtype}, {encodingProperties.Bitrate} bits/sec, {supportInfo.DecoderStatus}";
@@ -300,7 +336,7 @@ namespace MusicOnTheRoad.ViewModels
             Pickers.SetPickedFolder(folder, folder.Path); // set the token equal to the path, for later retrieval
             await RunInUiThreadAsync(delegate
             {
-                _persistentData.AddPinnedFolderPath(folder.Path);
+                PersistentData.AddPinnedFolderPath(folder.Path);
 
                 if (_pinnedFolders.Any((fwc) => fwc.FolderPath == folder.Path)) return;
                 _pinnedFolders.Add(new FolderWithChildren(folder.Name, folder.Path));
@@ -310,7 +346,7 @@ namespace MusicOnTheRoad.ViewModels
         {
             return RunInUiThreadAsync(delegate
             {
-                _persistentData.ClearPinnedFolderPaths();
+                PersistentData.ClearPinnedFolderPaths();
                 _pinnedFolders.Clear();
             });
         }
@@ -349,7 +385,7 @@ namespace MusicOnTheRoad.ViewModels
 
                     if (toBeExpanded == null || isExpanded)
                     {
-                        _persistentData.ExpandedPinnedFolderPath = null;
+                        PersistentData.ExpandedPinnedFolderPath = null;
                         isShrinking = true;
                     }
                 }).ConfigureAwait(false);
@@ -392,7 +428,7 @@ namespace MusicOnTheRoad.ViewModels
                 {
                     toBeExpanded.Children.AddRange(children);
                     toBeExpanded.ExpandedMode = ExpandedModes.Expanded;
-                    _persistentData.ExpandedPinnedFolderPath = toBeExpanded.FolderPath;
+                    PersistentData.ExpandedPinnedFolderPath = toBeExpanded.FolderPath;
                 }).ConfigureAwait(false);
             }
             finally
@@ -405,7 +441,7 @@ namespace MusicOnTheRoad.ViewModels
         {
             return RunInUiThreadAsync(delegate
             {
-                _persistentData.RemovePinnedFolderPath(folderPath);
+                PersistentData.RemovePinnedFolderPath(folderPath);
 
                 var toBeRemoved = _pinnedFolders.FirstOrDefault((folderWithChildren) => { return folderWithChildren.FolderPath == folderPath; });
                 if (toBeRemoved == null) return;
@@ -430,29 +466,12 @@ namespace MusicOnTheRoad.ViewModels
         #endregion services
 
         #region data event handlers
-        private bool _isDataChangedHandlersActive = false;
-        private void AddDataChangedHandlers()
-        {
-            if (_isDataChangedHandlersActive) return;
-            SuspensionManager.Loaded += OnSuspensionManager_Loaded;
-            var persistentData = _persistentData;
-            if (persistentData != null) persistentData.PropertyChanged += OnPersistentData_PropertyChanged;
-            _isDataChangedHandlersActive = true;
-        }
-        private void RemoveDataChangedHandlers()
-        {
-            SuspensionManager.Loaded -= OnSuspensionManager_Loaded;
-            var persistentData = _persistentData;
-            if (persistentData != null) persistentData.PropertyChanged -= OnPersistentData_PropertyChanged;
-            _isDataChangedHandlersActive = false;
-        }
-
         private void OnSuspensionManager_Loaded(object sender, bool isLoaded)
         {
-            if (!isLoaded) return;
-            Task upd0 = UpdateLastMessageAsync();
-            Task upd1 = UpdatePinnedFoldersAsync();
-            Task upd2 = UpdateKeepAliveAsync();
+            Task upd = RunInUiThreadAsync(() =>
+            {
+                UpdateFromPersistentData();
+            });
         }
 
         private async void OnPersistentData_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
@@ -528,7 +547,9 @@ namespace MusicOnTheRoad.ViewModels
             if (isDisposing)
             {
                 // TODO: dispose managed state (managed objects).
-                RemoveDataChangedHandlers();
+                SuspensionManager.Loaded -= OnSuspensionManager_Loaded;
+                var pd = _persistentData;
+                if (pd != null) pd.PropertyChanged -= OnPersistentData_PropertyChanged;
                 RemoveMediaHandlers();
                 Task stopKeepAlive = RunInUiThreadAsync(() => KeepAlive.StopKeepAlive());
                 SemaphoreSlimSafeRelease.TryDispose(_mediaSourceSemaphore);
